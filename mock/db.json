@@ -1,0 +1,471 @@
+{
+  "roles": [
+    {
+      "key": "user",
+      "name": "User"
+    },
+    {
+      "key": "manager",
+      "name": "Manager"
+    },
+    {
+      "key": "senior_manager",
+      "name": "Senior Manager"
+    }
+  ],
+  "users": [
+    {
+      "key": "user1",
+      "name": "User 1",
+      "roles": ["manager"]
+    },
+    {
+      "key": "user2",
+      "name": "User 2",
+      "roles": ["senior_manager"]
+    }
+  ],
+  "workflows": [
+    {
+      "key": "csv_upload_v1",
+      "name": "CSV Upload Workflow (Manager)",
+      "nodes": [
+        {
+          "key": "start",
+          "type": "start"
+        },
+        {
+          "key": "first_approval",
+          "type": "task",
+          "config": {
+            "type": "assignment",
+            "payload": {
+              "type": "role",
+              "roles": ["manager"]
+            }
+          }
+        },
+        {
+          "key": "first_decision",
+          "type": "decision"
+        },
+        {
+          "key": "second_approval",
+          "type": "task",
+          "config": {
+            "type": "assignment",
+            "payload": {
+              "type": "role",
+              "roles": ["senior_manager"]
+            }
+          }
+        },
+        {
+          "key": "rejected_noti",
+          "type": "service",
+          "config": {
+            "type": "service",
+            "payload": {
+              "type": "http",
+              "method": "POST",
+              "url": "http://localhost:3000/api/v1/test",
+              "body": {
+                "title": "Rejected request.",
+                "body": "Your request was rejected."
+              }
+            }
+          }
+        },
+        {
+          "key": "second_decision",
+          "type": "decision"
+        },
+        {
+          "key": "approved_noti",
+          "type": "service",
+          "config": {
+            "type": "service",
+            "payload": {
+              "type": "http",
+              "method": "POST",
+              "url": "http://localhost:3000/api/v1/test",
+              "body": {
+                "title": "Approved",
+                "body": "Your request was approved."
+              }
+            }
+          }
+        },
+        {
+          "key": "end",
+          "type": "end"
+        }
+      ],
+      "transitions": [
+        {
+          "fromNode": "start",
+          "toNode": "first_approval"
+        },
+        {
+          "fromNode": "first_approval",
+          "toNode": "first_decision"
+        },
+        {
+          "fromNode": "first_decision",
+          "toNode": "rejected_noti",
+          "config": {
+            "type": "condition",
+            "payload": {
+              "type": "jexl",
+              "expression": "variables.outputs.first_approval.isApproved == false"
+            }
+          }
+        },
+        {
+          "fromNode": "first_decision",
+          "toNode": "approved_noti",
+          "config": {
+            "type": "condition",
+            "payload": {
+              "type": "jexl",
+              "expression": "variables.outputs.first_approval.isApproved == true"
+            }
+          }
+        },
+        {
+          "fromNode": "rejected_noti",
+          "toNode": "end"
+        },
+        {
+          "fromNode": "approved_noti",
+          "toNode": "end"
+        }
+      ]
+    },
+    {
+      "key": "csv_upload_v2",
+      "name": "CSV Upload Workflow (Manager + Senior Manager)",
+      "nodes": [
+        {
+          "key": "start",
+          "type": "start"
+        },
+        {
+          "key": "first_approval",
+          "type": "task",
+          "config": {
+            "type": "assignment",
+            "payload": {
+              "type": "role",
+              "roles": ["manager"]
+            }
+          }
+        },
+        {
+          "key": "first_decision",
+          "type": "decision"
+        },
+        {
+          "key": "second_approval",
+          "type": "task",
+          "config": {
+            "type": "assignment",
+            "payload": {
+              "type": "role",
+              "roles": ["senior_manager"]
+            }
+          }
+        },
+        {
+          "key": "rejected_noti",
+          "type": "service",
+          "config": {
+            "type": "service",
+            "payload": {
+              "type": "http",
+              "method": "POST",
+              "url": "http://localhost:3000/api/v1/test",
+              "body": {
+                "title": "Rejected request.",
+                "body": "Your request was rejected."
+              }
+            }
+          }
+        },
+        {
+          "key": "second_decision",
+          "type": "decision"
+        },
+        {
+          "key": "approved_noti",
+          "type": "service",
+          "config": {
+            "type": "service",
+            "payload": {
+              "type": "http",
+              "method": "POST",
+              "url": "http://localhost:3000/api/v1/test",
+              "body": {
+                "title": "Approved",
+                "body": "Your request was approved."
+              }
+            }
+          }
+        },
+        {
+          "key": "end",
+          "type": "end"
+        }
+      ],
+      "transitions": [
+        {
+          "fromNode": "start",
+          "toNode": "first_approval"
+        },
+        {
+          "fromNode": "first_approval",
+          "toNode": "first_decision"
+        },
+        {
+          "fromNode": "first_decision",
+          "toNode": "rejected_noti",
+          "config": {
+            "type": "condition",
+            "payload": {
+              "type": "jexl",
+              "expression": "variables.outputs.first_approval.isApproved == false"
+            }
+          }
+        },
+        {
+          "fromNode": "first_decision",
+          "toNode": "second_approval",
+          "config": {
+            "type": "condition",
+            "payload": {
+              "type": "jexl",
+              "expression": "variables.outputs.first_approval.isApproved == true"
+            }
+          }
+        },
+        {
+          "fromNode": "second_approval",
+          "toNode": "second_decision"
+        },
+        {
+          "fromNode": "second_decision",
+          "toNode": "rejected_noti",
+          "config": {
+            "type": "condition",
+            "payload": {
+              "type": "jexl",
+              "expression": "variables.outputs.second_approval.isApproved == false"
+            }
+          }
+        },
+        {
+          "fromNode": "second_decision",
+          "toNode": "approved_noti",
+          "config": {
+            "type": "condition",
+            "payload": {
+              "type": "jexl",
+              "expression": "variables.outputs.second_approval.isApproved == true"
+            }
+          }
+        },
+        {
+          "fromNode": "rejected_noti",
+          "toNode": "end"
+        },
+        {
+          "fromNode": "approved_noti",
+          "toNode": "end"
+        }
+      ]
+    },
+    {
+      "key": "csv_upload_v3",
+      "name": "CSV Upload Workflow (manager + senior manager + CEO)",
+      "nodes": [
+        {
+          "key": "start",
+          "type": "start"
+        },
+        {
+          "key": "first_approval",
+          "type": "task",
+          "config": {
+            "type": "assignment",
+            "payload": {
+              "type": "role",
+              "roles": ["manager"]
+            }
+          }
+        },
+        {
+          "key": "first_decision",
+          "type": "decision"
+        },
+        {
+          "key": "second_approval",
+          "type": "task",
+          "config": {
+            "type": "assignment",
+            "payload": {
+              "type": "role",
+              "roles": ["senior_manager"]
+            }
+          }
+        },
+        {
+          "key": "rejected_noti",
+          "type": "service",
+          "config": {
+            "type": "service",
+            "payload": {
+              "type": "http",
+              "method": "POST",
+              "url": "http://localhost:3000/api/v1/test",
+              "body": {
+                "title": "Rejected request.",
+                "body": "Your request was rejected."
+              }
+            }
+          }
+        },
+        {
+          "key": "second_decision",
+          "type": "decision"
+        },
+        {
+          "key": "third_approval",
+          "type": "task",
+          "config": {
+            "type": "assignment",
+            "payload": {
+              "type": "role",
+              "roles": ["ceo"]
+            }
+          }
+        },
+        {
+          "key": "third_decision",
+          "type": "decision"
+        },
+        {
+          "key": "approved_noti",
+          "type": "service",
+          "config": {
+            "type": "service",
+            "payload": {
+              "type": "http",
+              "method": "POST",
+              "url": "http://localhost:3000/api/v1/test",
+              "body": {
+                "title": "Approved",
+                "body": "Your request was approved."
+              }
+            }
+          }
+        },
+        {
+          "key": "end",
+          "type": "end"
+        }
+      ],
+      "transitions": [
+        {
+          "fromNode": "start",
+          "toNode": "first_approval"
+        },
+        {
+          "fromNode": "first_approval",
+          "toNode": "first_decision"
+        },
+        {
+          "fromNode": "first_decision",
+          "toNode": "rejected_noti",
+          "config": {
+            "type": "condition",
+            "payload": {
+              "type": "jexl",
+              "expression": "variables.outputs.first_approval.isApproved == false"
+            }
+          }
+        },
+        {
+          "fromNode": "first_decision",
+          "toNode": "second_approval",
+          "config": {
+            "type": "condition",
+            "payload": {
+              "type": "jexl",
+              "expression": "variables.outputs.first_approval.isApproved == true"
+            }
+          }
+        },
+        {
+          "fromNode": "second_approval",
+          "toNode": "second_decision"
+        },
+        {
+          "fromNode": "second_decision",
+          "toNode": "third_approval",
+          "config": {
+            "type": "condition",
+            "payload": {
+              "type": "jexl",
+              "expression": "variables.outputs.second_approval.isApproved == true"
+            }
+          }
+        },
+        {
+          "fromNode": "second_decision",
+          "toNode": "failed_noti",
+          "config": {
+            "type": "condition",
+            "payload": {
+              "type": "jexl",
+              "expression": "variables.outputs.second_approval.isApproved == false"
+            }
+          }
+        },
+        {
+          "fromNode": "third_approval",
+          "toNode": "third_decision"
+        },
+        {
+          "fromNode": "third_decision",
+          "toNode": "failed_noti",
+          "config": {
+            "type": "condition",
+            "payload": {
+              "type": "jexl",
+              "expression": "variables.outputs.third_approval.isApproved == false"
+            }
+          }
+        },
+        {
+          "fromNode": "third_decision",
+          "toNode": "approved_noti",
+          "config": {
+            "type": "condition",
+            "payload": {
+              "type": "jexl",
+              "expression": "variables.outputs.third_approval.isApproved == true"
+            }
+          }
+        },
+        {
+          "fromNode": "rejected_noti",
+          "toNode": "end"
+        },
+        {
+          "fromNode": "approved_noti",
+          "toNode": "end"
+        }
+      ]
+    }
+  ]
+}

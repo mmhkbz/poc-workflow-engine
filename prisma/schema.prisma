@@ -1,0 +1,68 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum WorkflowInstanceStatus {
+  started
+  in_progress
+  completed
+  failed
+}
+
+model WorkflowInstance {
+  id String @id @default(uuid())
+  workflowId String @map("workflow_id")
+  currentNode String? @map("current_node")
+  refId String  @map("ref_id")
+  defSnapshot Json @map("def_snapshot")
+  variables Json @map("variables")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  createdBy String? @map("created_by")
+  updatedBy String? @map("updated_by")
+  status WorkflowInstanceStatus @default(started) @map("status")
+
+  @@map("workflow_instances")
+  @@index([workflowId], name: "idx_workflow_id_instance")
+  @@index([refId], name: "idx_ref_id_workflow_id")
+}
+
+enum TaskStatus {
+  pending
+  sla_breached
+  completed
+}
+
+model Task {
+  id String @id @default(uuid())
+  assignedUserId String? @map("assigned_user_id")
+  assignedRoleId String? @map("assigned_role_id")
+  instanceId String  @map("instance_id")
+  workflowId String @map("workflow_id")
+  inputs Json? @map("inputs")
+  outputs Json? @map("outputs")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  createdBy String? @map("created_by")
+  updatedBy String? @map("updated_by")  
+  status TaskStatus @default(pending) @map("status")
+
+  @@index([assignedUserId], name: "idx_assigned_user_id")
+  @@index([assignedRoleId], name: "idx_assigned_role_id")
+  @@index([instanceId, createdAt], name: "idx_instance_id")
+  @@index([workflowId, createdAt], name: "idx_workflow_id")
+  @@index([createdAt], name: "idx_created_at")
+
+  @@map("tasks")
+}

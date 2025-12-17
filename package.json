@@ -5,7 +5,8 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "start:workflow-master": "npx json-server ./mock/db.json --port 5000"
+    "start:workflow-master": "npx json-server ./mock/db.json --port 5000",
+    "apply:migrate": "prisma migrate deploy"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.6",

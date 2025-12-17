@@ -84,8 +84,6 @@ export class WorkflowEngineService {
         (item: any) => item.fromNode == params.instance.currentNode
       ) || [];
 
-    console.log("available trxns", availableTransitions);
-
     for (const transition of availableTransitions) {
       const toNode = nodes.find((node: any) => node.key === transition.toNode);
       if (toNode) {
@@ -109,7 +107,6 @@ export class WorkflowEngineService {
             });
             break;
           case NodeType.END:
-            console.log("end node reached");
             await this.updateWorkflowInstance({
               instanceId: params.instance.id || "",
               nodeKey: toNode.key || "",
@@ -118,7 +115,6 @@ export class WorkflowEngineService {
             });
         }
       } else {
-        console.log("no node found");
         await this.updateWorkflowInstance({
           instanceId: params.instance.id || "",
           nodeKey: transition.fromNode,
@@ -222,7 +218,6 @@ export class WorkflowEngineService {
               const node = defSnapshot.nodes.find(
                 (n: any) => n.key === transition.toNode
               );
-              console.log("node ", node);
               if (node) {
                 switch (node.type) {
                   case NodeType.SERVICE:

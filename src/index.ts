@@ -6,6 +6,7 @@ import { Env } from "./types/types";
 import { workflowRoute } from "./routes/workflow.route";
 import { taskRoute } from "./routes/task.route";
 import { testRoute } from "./routes/test.route";
+import { roleRoute } from "./routes/role.route";
 
 const app = new Hono<Env>();
 app.use(serviceMiddleware);
@@ -13,6 +14,7 @@ app.use(serviceMiddleware);
 app.route("/api/v1/workflows", workflowRoute);
 app.route("/api/v1/tasks", taskRoute);
 app.route("/api/v1/test", testRoute);
+app.route("/api/v1/roles", roleRoute);
 
 serve(
   {

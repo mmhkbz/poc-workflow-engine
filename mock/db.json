@@ -68,10 +68,10 @@
             "payload": {
               "type": "http",
               "method": "POST",
-              "url": "http://localhost:3000/api/v1/test",
+              "url": "http://localhost:3001/api/notifications",
               "body": {
                 "title": "Rejected request.",
-                "body": "Your request was rejected."
+                "message": "Your request was rejected."
               }
             }
           }
@@ -88,10 +88,10 @@
             "payload": {
               "type": "http",
               "method": "POST",
-              "url": "http://localhost:3000/api/v1/test",
+              "url": "http://localhost:3001/api/notifications",
               "body": {
                 "title": "Approved",
-                "body": "Your request was approved."
+                "message": "Your request was approved."
               }
             }
           }
@@ -184,10 +184,10 @@
             "payload": {
               "type": "http",
               "method": "POST",
-              "url": "http://localhost:3000/api/v1/test",
+              "url": "http://localhost:3001/api/notifications",
               "body": {
                 "title": "Rejected request.",
-                "body": "Your request was rejected."
+                "message": "Your request was rejected."
               }
             }
           }
@@ -204,10 +204,10 @@
             "payload": {
               "type": "http",
               "method": "POST",
-              "url": "http://localhost:3000/api/v1/test",
+              "url": "http://localhost:3001/api/notifications",
               "body": {
                 "title": "Approved",
-                "body": "Your request was approved."
+                "message": "Your request was approved."
               }
             }
           }
@@ -326,10 +326,10 @@
             "payload": {
               "type": "http",
               "method": "POST",
-              "url": "http://localhost:3000/api/v1/test",
+              "url": "http://localhost:3001/api/notifications",
               "body": {
                 "title": "Rejected request.",
-                "body": "Your request was rejected."
+                "message": "Your request was rejected."
               }
             }
           }
@@ -361,10 +361,10 @@
             "payload": {
               "type": "http",
               "method": "POST",
-              "url": "http://localhost:3000/api/v1/test",
+              "url": "http://localhost:3001/api/notifications",
               "body": {
                 "title": "Approved",
-                "body": "Your request was approved."
+                "message": "Your request was approved."
               }
             }
           }

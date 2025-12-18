@@ -24,6 +24,7 @@ workflowRoute.post("/start", async (c) => {
     context: body.context || {},
     payloadId: body.payloadId || "",
     createdBy: userId,
+    refId: body.refId || "",
   });
 
   return c.json(dataResponse(savedInstance));

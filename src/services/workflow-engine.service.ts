@@ -12,6 +12,7 @@ import {
 } from "../configs/consts";
 import axios from "axios";
 import jexl from "jexl";
+import { evalTemplate } from "../utils/expr.util";
 
 export class WorkflowEngineService {
   constructor(private readonly c: Context<Env>) {}
@@ -39,6 +40,7 @@ export class WorkflowEngineService {
     const instance = await prisma.workflowInstance.create({
       data: {
         variables: {
+          refId: params.refId || "",
           request: params.context || {},
         },
         workflowId: workflow.key || "",
@@ -163,11 +165,14 @@ export class WorkflowEngineService {
   }
 
   async executeService(parmas: ExecuteServiceParams): ExecuteServiceResponse {
-    const payload = parmas.node?.config?.payload;
+    const payload = parmas.node?.config?.payload || {};
     if (!payload) return;
     switch (payload?.type) {
       case ServiceType.HTTP:
-        await this.executeHttp(payload);
+        await this.executeHttp({
+          ...payload,
+          variables: parmas.instance.variables,
+        });
         break;
     }
     const res = await this.updateWorkflowInstance({
@@ -182,10 +187,19 @@ export class WorkflowEngineService {
   }
 
   private async executeHttp(payload: any) {
+    const stringifiedBody = JSON.stringify(payload.body || {});
+    console.log(payload.body);
+    console.log(payload.variables);
     const res = await axios.request({
       method: payload.method,
       url: payload.url,
-      data: payload.body || {},
+      data: payload.body
+        ? stringifiedBody?.includes("variables")
+          ? await evalTemplate(payload.body, {
+              variables: payload.variables,
+            })
+          : payload.body
+        : {},
     });
     return res;
   }
@@ -245,6 +259,7 @@ export type StartWorkflowParams = {
   context: Record<string, any>;
   payloadId: string;
   createdBy: string;
+  refId: string;
 };
 
 export type StartWorkflowResponse = Promise<WorkflowInstance>;

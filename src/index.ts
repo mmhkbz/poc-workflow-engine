@@ -7,9 +7,16 @@ import { workflowRoute } from "./routes/workflow.route";
 import { taskRoute } from "./routes/task.route";
 import { testRoute } from "./routes/test.route";
 import { roleRoute } from "./routes/role.route";
+import { cors } from "hono/cors";
 
 const app = new Hono<Env>();
 app.use(serviceMiddleware);
+
+app.use(
+  cors({
+    origin: "*",
+  })
+);
 
 app.route("/api/v1/workflows", workflowRoute);
 app.route("/api/v1/tasks", taskRoute);

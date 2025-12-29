@@ -4,6 +4,9 @@ export type Env = {
   Bindings: {
     WORKFLOW_MASTER_API_URL: string;
     DATABASE_URL: string;
+    REDIS_HOST: string;
+    REDIS_PORT: string;
+    REDIS_PASSWORD: string;
   };
   Variables: {
     workflowMasterApi: import("axios").AxiosInstance;
@@ -11,6 +14,8 @@ export type Env = {
     prisma: PrismaClient;
     workflowEngineService: import("../services/workflow-engine.service").WorkflowEngineService;
     taskService: import("../services/task.service").TaskService;
+    redis: import("ioredis").Redis;
+    slaQueue: import("bullmq").Queue;
   };
 };
 

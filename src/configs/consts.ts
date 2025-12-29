@@ -43,3 +43,7 @@ export enum AssignmentType {
 export enum ServiceType {
   HTTP = "http",
 }
+
+export enum QueueName {
+  SLA_QUEUE = "sla-queue",
+}

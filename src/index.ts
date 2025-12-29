@@ -23,6 +23,17 @@ app.route("/api/v1/tasks", taskRoute);
 app.route("/api/v1/test", testRoute);
 app.route("/api/v1/roles", roleRoute);
 
+let count = 0;
+
+app.get("/api/v1/test", async (c) => {
+  const redis = c.get("redis");
+  await redis.set("counter", count);
+  await redis.incr("counter");
+  const result = await redis.get("counter");
+  count = Number(result);
+  return c.json({ count: result });
+});
+
 serve(
   {
     fetch: app.fetch,

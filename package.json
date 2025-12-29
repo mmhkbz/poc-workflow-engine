@@ -14,8 +14,10 @@
     "@prisma/client": "^7.1.0",
     "@types/jexl": "^2.3.4",
     "axios": "^1.13.2",
+    "bullmq": "^5.66.4",
     "dotenv": "^17.2.3",
     "hono": "^4.11.1",
+    "ioredis": "^5.8.2",
     "jexl": "^2.3.0"
   },
   "devDependencies": {

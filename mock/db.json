@@ -624,6 +624,9 @@
               "url": "https://41l5r34h-3001.asse.devtunnels.ms/api/process-csv",
               "body": {
                 "refId": "variables.refId"
+              },
+              "headers": {
+                "Content-Type": "application/json"
               }
             }
           }

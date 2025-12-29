@@ -9,4 +9,5 @@ export const createRedis = (params: {
     host: params.host,
     port: params.port,
     password: params.password,
+    maxRetriesPerRequest: null,
   });

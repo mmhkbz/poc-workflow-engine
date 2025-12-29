@@ -8,6 +8,12 @@ import { taskRoute } from "./routes/task.route";
 import { testRoute } from "./routes/test.route";
 import { roleRoute } from "./routes/role.route";
 import { cors } from "hono/cors";
+import { QueueName } from "./configs/consts";
+import ms from "ms";
+import dayjs from "dayjs";
+import { createRedis } from "./libs/redis";
+import { createSlaWorker } from "./workers/sla-worker";
+import { createQueue } from "./libs/queue";
 
 const app = new Hono<Env>();
 app.use(serviceMiddleware);
@@ -31,6 +37,18 @@ app.get("/api/v1/test", async (c) => {
   await redis.incr("counter");
   const result = await redis.get("counter");
   count = Number(result);
+  const slaQueue = c.get("slaQueue");
+  console.log(
+    "new task will be executed on ",
+    dayjs().add(count, "minute").toISOString()
+  );
+  await slaQueue.add(
+    QueueName.SLA_QUEUE,
+    `Test job data with ${result}m delayed.`,
+    {
+      delay: ms(`${count}m`),
+    }
+  );
   return c.json({ count: result });
 });
 
@@ -39,7 +57,19 @@ serve(
     fetch: app.fetch,
     port: 3000,
   },
-  (info) => {
+  async (info) => {
+    const redisHost = process.env.REDIS_HOST || "";
+    const redisPort = Number(process.env.REDIS_PORT);
+    const redisPassword = process.env.REDIS_PASSWORD;
+
+    const redis = createRedis({
+      host: redisHost,
+      port: redisPort,
+      password: redisPassword,
+    });
+
+    createSlaWorker(redis);
+
     console.log(`Server is running on http://localhost:${info.port}`);
   }
 );

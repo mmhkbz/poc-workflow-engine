@@ -10,6 +10,7 @@ import { TaskService } from "../services/task.service";
 import { createRedis } from "../libs/redis";
 import { createQueue } from "../libs/queue";
 import { QueueName } from "../configs/consts";
+import { createSlaWorker } from "../workers/sla-worker";
 
 export const serviceMiddleware = createMiddleware<Env>(async (c, next) => {
   const { WORKFLOW_MASTER_API_URL, REDIS_HOST, REDIS_PASSWORD, REDIS_PORT } =

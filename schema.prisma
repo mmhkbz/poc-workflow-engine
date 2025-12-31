@@ -1,0 +1,356 @@
+// ==================== Core Workflow Models ====================
+
+model WorkflowDefinition {
+  id              String   @id @default(cuid())
+  key             String   @unique
+  name            String
+  description     String?
+  version         Int      @default(1)
+  definition      Json     // Your workflow JSON
+  isActive        Boolean  @default(true)
+  isPublished     Boolean  @default(false)
+  
+  // Metadata
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  createdBy       String
+  updatedBy       String? 
+  
+  // Relations
+  instances       WorkflowInstance[]
+  
+  @@index([key, version])
+  @@index([isActive, isPublished])
+}
+
+model WorkflowInstance {
+  id                String                 @id @default(cuid())
+  workflowId        String
+  refId             String?                 // External reference (e.g., order ID, request ID)
+  
+  // State
+  currentNode       String
+  currentBranch     String?                // For parallel branches
+  status            WorkflowInstanceStatus
+  variables         Json                   @default("{}")
+  defSnapshot       Json                   // Snapshot of workflow definition
+  
+  // Tracking
+  startedAt         DateTime               @default(now())
+  completedAt       DateTime? 
+  failedAt          DateTime?
+  
+  // Metadata
+  createdBy         String
+  updatedBy         String?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  
+  // Relations
+  definition        WorkflowDefinition     @relation(fields: [workflowId], references: [key])
+  tasks             Task[]
+  slaInstances      SlaInstance[]
+  timerInstances    TimerInstance[]
+  parallelBranches  ParallelBranchInstance[]
+  events            WorkflowEvent[]
+  
+  @@index([workflowId, status])
+  @@index([refId])
+  @@index([status, startedAt])
+}
+
+enum WorkflowInstanceStatus {
+  pending
+  running
+  waiting           // Waiting for task, timer, or external event
+  paused
+  completed
+  failed
+  cancelled
+  sla_breached
+}
+
+// ==================== Task Management ====================
+
+model Task {
+  id                String          @id @default(cuid())
+  instanceId        String
+  nodeKey           String          // Reference to node in workflow
+  
+  // Assignment
+  assignedRoleId    String? 
+  assignedUserId    String? 
+  claimedBy         String?         // User who claimed the task
+  
+  // Data
+  inputs            Json            @default("{}")
+  outputs           Json            @default("{}")
+  
+  // Status
+  status            TaskStatus
+  priority          TaskPriority    @default(medium)
+  
+  // Timing
+  dueDate           DateTime?
+  claimedAt         DateTime?
+  completedAt       DateTime?
+  
+  // Metadata
+  workflowId        String
+  createdBy         String
+  updatedBy         String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  
+  // Relations
+  instance          WorkflowInstance @relation(fields: [instanceId], references:  [id], onDelete: Cascade)
+  slaInstances      SlaInstance[]
+  
+  @@index([instanceId, status])
+  @@index([assignedRoleId, status])
+  @@index([assignedUserId, status])
+  @@index([claimedBy, status])
+  @@index([dueDate, status])
+}
+
+enum TaskStatus {
+  pending
+  assigned
+  claimed
+  in_progress
+  completed
+  failed
+  cancelled
+  expired
+}
+
+enum TaskPriority {
+  low
+  medium
+  high
+  critical
+}
+
+// ==================== SLA Management ====================
+
+model SlaInstance {
+  id                String            @id @default(cuid())
+  instanceId        String
+  taskId            String?            // Optional:  SLA can be for task or entire workflow
+  nodeKey           String
+  
+  // SLA Configuration
+  slaDefinitionKey  String            // Reference to SLA definition in workflow JSON
+  targetDuration    Int               // Duration in seconds
+  warningThreshold  Int?               // Warning threshold in seconds (e.g., 80% of target)
+  
+  // Status
+  status            SlaStatus
+  breachedAt        DateTime?
+  warningAt         DateTime?
+  
+  // Timing
+  startedAt         DateTime          @default(now())
+  targetTime        DateTime          // Calculated target completion time
+  completedAt       DateTime?
+  
+  // Escalation
+  escalationLevel   Int               @default(0)
+  lastEscalatedAt   DateTime? 
+  
+  // Metadata
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  
+  // Relations
+  instance          WorkflowInstance  @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  task              Task?             @relation(fields:  [taskId], references: [id], onDelete: Cascade)
+  escalations       SlaEscalation[]
+  
+  @@index([instanceId, status])
+  @@index([taskId, status])
+  @@index([targetTime, status])
+  @@index([status, escalationLevel])
+}
+
+enum SlaStatus {
+  active
+  warning
+  breached
+  completed
+  cancelled
+  paused
+}
+
+model SlaEscalation {
+  id                String      @id @default(cuid())
+  slaInstanceId     String
+  
+  // Escalation Details
+  level             Int
+  escalatedTo       String[]    // User IDs or role IDs
+  escalationType    String      // email, notification, task_reassign, etc.
+  
+  // Timing
+  escalatedAt       DateTime    @default(now())
+  acknowledgedAt    DateTime?
+  acknowledgedBy    String?
+  
+  // Actions Taken
+  actionsTaken      Json        @default("[]")
+  
+  // Relations
+  slaInstance       SlaInstance @relation(fields: [slaInstanceId], references: [id], onDelete: Cascade)
+  
+  @@index([slaInstanceId, level])
+}
+
+// ==================== Timer Management ====================
+
+model TimerInstance {
+  id                String            @id @default(cuid())
+  instanceId        String
+  nodeKey           String
+  
+  // Timer Configuration
+  timerType         TimerType
+  duration          Int?               // Duration in seconds (for DURATION type)
+  triggerAt         DateTime?          // Specific time (for FIXED_DATE type)
+  cronExpression    String?           // Cron expression (for CRON type)
+  
+  // Status
+  status            TimerStatus
+  triggeredAt       DateTime?
+  
+  // Timing
+  startedAt         DateTime          @default(now())
+  scheduledFor      DateTime          // When the timer should trigger
+  
+  // Retry Configuration
+  maxRetries        Int               @default(0)
+  retryCount        Int               @default(0)
+  retryInterval     Int?               // Seconds between retries
+  
+  // Metadata
+  metadata          Json              @default("{}")
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  
+  // Relations
+  instance          WorkflowInstance  @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  
+  @@index([instanceId, status])
+  @@index([scheduledFor, status])
+  @@index([status, triggeredAt])
+}
+
+enum TimerType {
+  DURATION          // Wait for X seconds/minutes/hours
+  FIXED_DATE        // Wait until specific date/time
+  CRON              // Recurring based on cron expression
+  EXTERNAL_EVENT    // Wait for external event/webhook
+}
+
+enum TimerStatus {
+  scheduled
+  active
+  triggered
+  cancelled
+  expired
+  failed
+}
+
+// ==================== Parallel Branching ====================
+
+model ParallelBranchInstance {
+  id                String                      @id @default(cuid())
+  instanceId        String
+  parentNodeKey     String                      // The parallel gateway node
+  
+  // Branch Info
+  branchKey         String                      // Unique key for this branch
+  branchName        String? 
+  
+  // Status
+  status            ParallelBranchStatus
+  currentNode       String? 
+  
+  // Timing
+  startedAt         DateTime                    @default(now())
+  completedAt       DateTime?
+  
+  // Data
+  variables         Json                        @default("{}")  // Branch-specific variables
+  
+  // Metadata
+  createdAt         DateTime                    @default(now())
+  updatedAt         DateTime                    @updatedAt
+  
+  // Relations
+  instance          WorkflowInstance            @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  
+  @@unique([instanceId, branchKey])
+  @@index([instanceId, status])
+  @@index([parentNodeKey, status])
+}
+
+enum ParallelBranchStatus {
+  pending
+  running
+  completed
+  failed
+  cancelled
+}
+
+// ==================== Event & Audit ====================
+
+model WorkflowEvent {
+  id                String            @id @default(cuid())
+  instanceId        String
+  
+  // Event Details
+  eventType         String            // workflow.started, node.entered, sla.breached, etc. 
+  nodeKey           String? 
+  
+  // Data
+  payload           Json              @default("{}")
+  metadata          Json              @default("{}")
+  
+  // Context
+  userId            String?
+  timestamp         DateTime          @default(now())
+  
+  // Relations
+  instance          WorkflowInstance  @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  
+  @@index([instanceId, eventType])
+  @@index([timestamp])
+  @@index([eventType, timestamp])
+}
+
+// ==================== Supporting Models ====================
+
+model Role {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  name        String
+  description String? 
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model User {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  name        String
+  email       String   @unique
+  roles       String[] // Array of role keys
+  
+  isActive    Boolean  @default(true)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([email])
+}

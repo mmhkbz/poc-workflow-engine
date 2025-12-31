@@ -1,0 +1,127 @@
+{
+  "slaDefinitions": [
+    {
+      "name": "Standard SLA for Batch Upload Approval.",
+      "key": "SLA01",
+      "variant": "node",
+      "facts": [
+        {
+          "level": 1,
+          "targetDuration": "30mins",
+          "condition": {
+            "type": "jexl",
+            "expression": "${local.variables.status} == 'pending'"
+          },
+          "actions": [
+            {
+              "name": "Send Reminder Noti",
+              "type": "service",
+              "config": {
+                "type": "http",
+                "method": "POST",
+                "url": "https://41l5r34h-3001.asse.devtunnels.ms/api/notifications",
+                "body": {
+                  "title": "Check your inbox!",
+                  "message": "Please check your inbox for tasks approval."
+                },
+                "headers": "Authorization ${context.variables.access_token}"
+              }
+            }
+          ]
+        },
+        {
+          "level": 2,
+          "targetDuration": "1h",
+          "condition": {
+            "type": "jexl",
+            "expression": "${local.variables.status} == 'pending'"
+          },
+          "actions": [
+            {
+              "type": "escalate",
+              "config": {
+                "type": "role",
+                "roles": ["senior_manager"]
+              },
+              "condition": {
+                "type": "jexl",
+                "expression": null
+              }
+            }
+          ]
+        },
+        {
+          "level": 3,
+          "targetDuration": "5h",
+          "condition": {
+            "type": "jexl",
+            "expression": "${local.variables.status} == 'pending'"
+          },
+          "actions": [
+            {
+              "type": "mutation",
+              "config": {
+                "type": "transition",
+                "toNode": "finish"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "timerDefinitions": [
+    {
+      "name": "Auto finish workflow",
+      "key": "TIMER01",
+      "variant": "workflow",
+      "timerType": "one-time",
+      "config": {
+        "type": "duration",
+        "value": "24hrs"
+      },
+      "actions": [
+        {
+          "type": "mutation",
+          "config": {
+            "type": "transition",
+            "toNode": "end"
+          }
+        }
+      ],
+      "condition": {
+        "type": "jexl",
+        "expression": "${context.variables.status} === 'running'"
+      }
+    },
+    {
+      "name": "Send Reminder Timer",
+      "key": "TIMER02",
+      "variant": "workflow",
+      "timerType": "one-time",
+      "actions": [
+        {
+          "type": "service",
+          "config": {
+            "type": "http",
+            "method": "POST",
+            "url": "https://41l5r34h-3001.asse.devtunnels.ms/api/notifications",
+            "body": {
+              "title": "Check your inbox!",
+              "message": "Please check your inbox for tasks approval."
+            },
+            "headers": "Authorization ${context.variables.access_token}"
+          }
+        }
+      ],
+      "config": {
+        "type": "duration",
+        "value": "24hrs"
+      },
+      "condition": {
+        "type": "jexl",
+        "expression": "${context.variables.status} === 'running'"
+      }
+    }
+  ]
+}

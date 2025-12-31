@@ -1,0 +1,645 @@
+{
+  "schema_version": "2.0",
+  "roles": [
+    {
+      "id": "manager",
+      "key": "manager",
+      "name": "Manager"
+    },
+    {
+      "id": "senior_manager",
+      "key": "senior_manager",
+      "name": "Senior Manager"
+    },
+    {
+      "id": "ceo",
+      "key": "ceo",
+      "name": "CEO"
+    }
+  ],
+  "users": [
+    {
+      "key": "user1",
+      "name": "User 1",
+      "email": "user1@company.com",
+      "roles": ["manager"]
+    },
+    {
+      "key": "user2",
+      "name": "User 2",
+      "email": "user2@company.com",
+      "roles": ["senior_manager"]
+    }
+  ],
+  "sla_definitions": [
+    {
+      "key": "standard_approval_sla",
+      "name": "Standard Approval SLA",
+      "description": "Standard SLA for approval tasks",
+      "target_duration": 86400,
+      "warning_threshold": 68800,
+      "escalation_policy": {
+        "enabled": true,
+        "levels": [
+          {
+            "level": 1,
+            "trigger_at": 68800,
+            "escalate_to": {
+              "type": "role",
+              "roles": ["senior_manager"]
+            },
+            "actions": [
+              {
+                "type": "notification",
+                "template": "sla_warning_template"
+              }
+            ]
+          },
+          {
+            "level": 2,
+            "trigger_at": 86400,
+            "escalate_to": {
+              "type": "role",
+              "roles": ["ceo"]
+            },
+            "actions": [
+              {
+                "type": "notification",
+                "template": "sla_breach_template"
+              },
+              {
+                "type": "task_reassign",
+                "reassign_to": {
+                  "type": "role",
+                  "roles": ["senior_manager"]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "key": "critical_approval_sla",
+      "name": "Critical Approval SLA",
+      "description": "SLA for critical approval tasks",
+      "target_duration": 3600,
+      "warning_threshold": 2700,
+      "escalation_policy": {
+        "enabled": true,
+        "levels": [
+          {
+            "level": 1,
+            "trigger_at": 2700,
+            "escalate_to": {
+              "type": "role",
+              "roles": ["ceo"]
+            },
+            "actions": [
+              {
+                "type": "notification",
+                "template": "critical_sla_warning_template",
+                "channels": ["email", "sms", "slack"]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "workflows": [
+    {
+      "key": "parallel_approval_workflow",
+      "name": "Parallel Approval Workflow with SLA",
+      "version": "2.0",
+      "description": "Workflow with parallel branches, SLA, and timers",
+      "variables": {
+        "refId": "",
+        "priority": "medium",
+        "amount": 0,
+        "requester": ""
+      },
+      "nodes": [
+        {
+          "key": "start",
+          "type": "start",
+          "name": "Start"
+        },
+        {
+          "key": "validate_request",
+          "type": "service",
+          "name": "Validate Request",
+          "config": {
+            "type": "service",
+            "payload": {
+              "type": "http",
+              "method": "POST",
+              "url": "https://api.example.com/validate",
+              "body": {
+                "refId": "{{variables.refId}}",
+                "amount": "{{variables.amount}}"
+              },
+              "timeout": 30000,
+              "retry": {
+                "enabled": true,
+                "max_attempts": 3,
+                "backoff": "exponential"
+              }
+            },
+            "error_handling": {
+              "on_failure": "validation_failed"
+            }
+          }
+        },
+        {
+          "key": "parallel_gateway",
+          "type": "parallel_gateway",
+          "name": "Parallel Approval Gateway",
+          "config": {
+            "type": "parallel",
+            "join_type": "all",
+            "branches": [
+              {
+                "key": "finance_branch",
+                "name": "Finance Approval Branch",
+                "nodes": ["finance_approval", "finance_decision"]
+              },
+              {
+                "key": "legal_branch",
+                "name": "Legal Approval Branch",
+                "nodes": ["legal_approval", "legal_decision"]
+              },
+              {
+                "key": "compliance_branch",
+                "name": "Compliance Check Branch",
+                "nodes": ["compliance_check", "compliance_decision"]
+              }
+            ],
+            "timeout": {
+              "enabled": true,
+              "duration": 259200,
+              "on_timeout": "escalate_all"
+            }
+          }
+        },
+        {
+          "key": "finance_approval",
+          "type": "task",
+          "name": "Finance Approval",
+          "branch": "finance_branch",
+          "config": {
+            "type": "assignment",
+            "payload": {
+              "type": "role",
+              "roles": ["manager"]
+            },
+            "sla": {
+              "enabled": true,
+              "sla_key": "standard_approval_sla",
+              "override": {
+                "target_duration": 43200
+              }
+            },
+            "reminder": {
+              "enabled": true,
+              "intervals": [3600, 7200, 14400]
+            }
+          }
+        },
+        {
+          "key": "finance_decision",
+          "type": "decision",
+          "name": "Finance Decision",
+          "branch": "finance_branch"
+        },
+        {
+          "key": "legal_approval",
+          "type": "task",
+          "name": "Legal Approval",
+          "branch": "legal_branch",
+          "config": {
+            "type": "assignment",
+            "payload": {
+              "type": "role",
+              "roles": ["senior_manager"]
+            },
+            "sla": {
+              "enabled": true,
+              "sla_key": "standard_approval_sla"
+            }
+          }
+        },
+        {
+          "key": "legal_decision",
+          "type": "decision",
+          "name": "Legal Decision",
+          "branch": "legal_branch"
+        },
+        {
+          "key": "compliance_check",
+          "type": "service",
+          "name": "Compliance Check",
+          "branch": "compliance_branch",
+          "config": {
+            "type": "service",
+            "payload": {
+              "type": "http",
+              "method": "POST",
+              "url": "https://api.example.com/compliance-check",
+              "body": {
+                "refId": "{{variables.refId}}"
+              }
+            },
+            "sla": {
+              "enabled": true,
+              "target_duration": 21600
+            }
+          }
+        },
+        {
+          "key": "compliance_decision",
+          "type": "decision",
+          "name": "Compliance Decision",
+          "branch": "compliance_branch"
+        },
+        {
+          "key": "parallel_join",
+          "type": "parallel_join",
+          "name": "Join All Approvals",
+          "config": {
+            "type": "join",
+            "join_type": "all",
+            "aggregate_results": true,
+            "branches": ["finance_branch", "legal_branch", "compliance_branch"]
+          }
+        },
+        {
+          "key": "wait_timer",
+          "type": "timer",
+          "name": "Wait for Cool-down Period",
+          "config": {
+            "type": "timer",
+            "timer_type": "duration",
+            "duration": 300,
+            "skip_on": {
+              "condition": "{{variables.priority}} == 'critical'"
+            }
+          }
+        },
+        {
+          "key": "final_approval",
+          "type": "task",
+          "name": "CEO Final Approval",
+          "config": {
+            "type": "assignment",
+            "payload": {
+              "type": "role",
+              "roles": ["ceo"]
+            },
+            "sla": {
+              "enabled": true,
+              "sla_key": "critical_approval_sla"
+            }
+          }
+        },
+        {
+          "key": "final_decision",
+          "type": "decision",
+          "name": "Final Decision"
+        },
+        {
+          "key": "process_approval",
+          "type": "service",
+          "name": "Process Approval",
+          "config": {
+            "type": "service",
+            "payload": {
+              "type": "http",
+              "method": "POST",
+              "url": "https://api.example.com/process-approval",
+              "body": {
+                "refId": "{{variables.refId}}",
+                "approvals": "{{variables.outputs}}"
+              }
+            }
+          }
+        },
+        {
+          "key": "send_approval_notification",
+          "type": "service",
+          "name": "Send Approval Notification",
+          "config": {
+            "type": "service",
+            "payload": {
+              "type": "http",
+              "method": "POST",
+              "url": "https://api.example.com/notifications",
+              "body": {
+                "title": "Request Approved",
+                "message": "Your request {{variables.refId}} has been approved.",
+                "recipient": "{{variables.requester}}"
+              }
+            }
+          }
+        },
+        {
+          "key": "send_rejection_notification",
+          "type": "service",
+          "name": "Send Rejection Notification",
+          "config": {
+            "type": "service",
+            "payload": {
+              "type": "http",
+              "method": "POST",
+              "url": "https://api.example.com/notifications",
+              "body": {
+                "title": "Request Rejected",
+                "message": "Your request {{variables.refId}} has been rejected.",
+                "recipient": "{{variables.requester}}"
+              }
+            }
+          }
+        },
+        {
+          "key": "validation_failed",
+          "type": "end",
+          "name": "Validation Failed",
+          "config": {
+            "type": "error",
+            "error_code": "VALIDATION_FAILED"
+          }
+        },
+        {
+          "key": "end",
+          "type": "end",
+          "name": "End"
+        }
+      ],
+      "transitions": [
+        {
+          "fromNode": "start",
+          "toNode": "validate_request"
+        },
+        {
+          "fromNode": "validate_request",
+          "toNode": "parallel_gateway"
+        },
+        {
+          "fromNode": "parallel_gateway",
+          "toNode": "finance_approval",
+          "config": {
+            "branch": "finance_branch"
+          }
+        },
+        {
+          "fromNode": "parallel_gateway",
+          "toNode": "legal_approval",
+          "config": {
+            "branch": "legal_branch"
+          }
+        },
+        {
+          "fromNode": "parallel_gateway",
+          "toNode": "compliance_check",
+          "config": {
+            "branch": "compliance_branch"
+          }
+        },
+        {
+          "fromNode": "finance_approval",
+          "toNode": "finance_decision"
+        },
+        {
+          "fromNode": "finance_decision",
+          "toNode": "parallel_join",
+          "config": {
+            "type": "condition",
+            "payload": {
+              "type": "jexl",
+              "expression": "variables.outputs.finance_approval. isApproved == true"
+            }
+          }
+        },
+        {
+          "fromNode": "finance_decision",
+          "toNode": "send_rejection_notification",
+          "config": {
+            "type": "condition",
+            "payload": {
+              "type": "jexl",
+              "expression": "variables.outputs.finance_approval.isApproved == false"
+            }
+          }
+        },
+        {
+          "fromNode": "legal_approval",
+          "toNode": "legal_decision"
+        },
+        {
+          "fromNode": "legal_decision",
+          "toNode": "parallel_join",
+          "config": {
+            "type": "condition",
+            "payload": {
+              "type": "jexl",
+              "expression": "variables.outputs.legal_approval.isApproved == true"
+            }
+          }
+        },
+        {
+          "fromNode": "legal_decision",
+          "toNode": "send_rejection_notification",
+          "config": {
+            "type": "condition",
+            "payload": {
+              "type": "jexl",
+              "expression": "variables. outputs.legal_approval.isApproved == false"
+            }
+          }
+        },
+        {
+          "fromNode": "compliance_check",
+          "toNode": "compliance_decision"
+        },
+        {
+          "fromNode": "compliance_decision",
+          "toNode": "parallel_join",
+          "config": {
+            "type": "condition",
+            "payload": {
+              "type": "jexl",
+              "expression": "variables.outputs.compliance_check.passed == true"
+            }
+          }
+        },
+        {
+          "fromNode": "compliance_decision",
+          "toNode": "send_rejection_notification",
+          "config": {
+            "type": "condition",
+            "payload": {
+              "type": "jexl",
+              "expression": "variables.outputs.compliance_check.passed == false"
+            }
+          }
+        },
+        {
+          "fromNode": "parallel_join",
+          "toNode": "wait_timer"
+        },
+        {
+          "fromNode": "wait_timer",
+          "toNode": "final_approval"
+        },
+        {
+          "fromNode": "final_approval",
+          "toNode": "final_decision"
+        },
+        {
+          "fromNode": "final_decision",
+          "toNode": "process_approval",
+          "config": {
+            "type": "condition",
+            "payload": {
+              "type": "jexl",
+              "expression": "variables.outputs.final_approval.isApproved == true"
+            }
+          }
+        },
+        {
+          "fromNode": "final_decision",
+          "toNode": "send_rejection_notification",
+          "config": {
+            "type": "condition",
+            "payload": {
+              "type": "jexl",
+              "expression": "variables.outputs.final_approval.isApproved == false"
+            }
+          }
+        },
+        {
+          "fromNode": "process_approval",
+          "toNode": "send_approval_notification"
+        },
+        {
+          "fromNode": "send_approval_notification",
+          "toNode": "end"
+        },
+        {
+          "fromNode": "send_rejection_notification",
+          "toNode": "end"
+        }
+      ]
+    },
+    {
+      "key": "timer_based_workflow",
+      "name": "Timer-Based Reminder Workflow",
+      "version": "1.0",
+      "nodes": [
+        {
+          "key": "start",
+          "type": "start"
+        },
+        {
+          "key": "schedule_task",
+          "type": "task",
+          "name": "Create Scheduled Task",
+          "config": {
+            "type": "assignment",
+            "payload": {
+              "type": "role",
+              "roles": ["manager"]
+            }
+          }
+        },
+        {
+          "key": "wait_for_deadline",
+          "type": "timer",
+          "name": "Wait Until Deadline",
+          "config": {
+            "type": "timer",
+            "timer_type": "fixed_date",
+            "trigger_at": "{{variables.deadline}}",
+            "on_trigger": {
+              "action": "send_reminder"
+            }
+          }
+        },
+        {
+          "key": "send_reminder",
+          "type": "service",
+          "name": "Send Deadline Reminder",
+          "config": {
+            "type": "service",
+            "payload": {
+              "type": "http",
+              "method": "POST",
+              "url": "https://api.example.com/send-reminder",
+              "body": {
+                "taskId": "{{variables.taskId}}",
+                "message": "Deadline approaching!"
+              }
+            }
+          }
+        },
+        {
+          "key": "recurring_check",
+          "type": "timer",
+          "name": "Recurring Compliance Check",
+          "config": {
+            "type": "timer",
+            "timer_type": "cron",
+            "cron_expression": "0 9 * * MON",
+            "max_iterations": 4,
+            "on_trigger": {
+              "action": "run_compliance"
+            }
+          }
+        },
+        {
+          "key": "run_compliance",
+          "type": "service",
+          "name": "Run Compliance Check",
+          "config": {
+            "type": "service",
+            "payload": {
+              "type": "http",
+              "method": "POST",
+              "url": "https://api.example.com/compliance"
+            }
+          }
+        },
+        {
+          "key": "end",
+          "type": "end"
+        }
+      ],
+      "transitions": [
+        {
+          "fromNode": "start",
+          "toNode": "schedule_task"
+        },
+        {
+          "fromNode": "schedule_task",
+          "toNode": "wait_for_deadline"
+        },
+        {
+          "fromNode": "wait_for_deadline",
+          "toNode": "send_reminder"
+        },
+        {
+          "fromNode": "send_reminder",
+          "toNode": "recurring_check"
+        },
+        {
+          "fromNode": "recurring_check",
+          "toNode": "run_compliance"
+        },
+        {
+          "fromNode": "run_compliance",
+          "toNode": "end"
+        }
+      ]
+    }
+  ]
+}

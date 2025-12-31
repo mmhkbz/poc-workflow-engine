@@ -1,0 +1,254 @@
+{
+  "groups": [
+    {
+      "key": "G01",
+      "name": "Group 1"
+    },
+    {
+      "key": "G02",
+      "name": "Group 2"
+    }
+  ],
+  "workflowDefinitions": [
+    {
+      "key": "csv_upload_v1",
+      "name": "CSV Upload Workflow (Manager)",
+      "nodes": [
+        {
+          "key": "start",
+          "type": "start"
+        },
+        {
+          "key": "first_gateway_init",
+          "type": "gateway",
+          "branches": ["send_initial_noti", "first_approval_branch"],
+          "gatewayType": "fork"
+        },
+        {
+          "key": "first_approval_branch",
+          "type": "task",
+          "config": {
+            "type": "assignment",
+            "payload": {
+              "roles": ["manager"],
+              "groups": ["G01", "G02", "G03"]
+            }
+          },
+          "configs": [
+            {
+              "type": "assignment",
+              "payload": {
+                "roles": ["manager"],
+                "groups": ["G01", "G02", "G03"]
+              }
+            },
+            {
+              "type": "lifecycle",
+              "payload": {
+                "onComplete": {
+                  "effects": [
+                    {
+                      "operationType": "INCREMENT_CONTEXT_VARIABLE",
+                      "path": "totalApproval",
+                      "value": {
+                        "type": "dynamic",
+                        "strategy": "jexl",
+                        "expression": "outputs.isApproved == true ? 1 : 0"
+                      }
+                    },
+                    {
+                      "operationType": "INCREMENT_CONTEXT_VARIABLE",
+                      "path": "totalRejection",
+                      "value": {
+                        "type": "dynamic",
+                        "strategy": "jexl",
+                        "expression": "outputs.isApproved == false ? 1 : 0"
+                      }
+                    }
+                  ]
+                },
+                "onInit": {
+                  "effects": [
+                    {
+                      "operationType": "SET_CONTEXT_VARIABLE",
+                      "value": {
+                        "type": "static",
+                        "payload": {
+                          "totalApproval": 0,
+                          "totalRejection": 0
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "branch": "first_approval_branch",
+          "slas": ["SLA01"],
+          "timers": ["TIMER01"]
+        },
+        {
+          "key": "send_initial_noti",
+          "type": "service",
+          "config": {
+            "type": "service",
+            "payload": {
+              "type": "http",
+              "method": "POST",
+              "url": "https://41l5r34h-3001.asse.devtunnels.ms/api/notifications",
+              "body": {
+                "title": "New CSV Upload Request",
+                "message": "A new CSV upload request has been submitted and is pending your approval."
+              }
+            }
+          },
+          "branch": "send_initial_noti"
+        },
+        {
+          "key": "first_decision",
+          "type": "decision"
+        },
+        {
+          "key": "rejected_noti",
+          "type": "service",
+          "config": {
+            "type": "service",
+            "payload": {
+              "type": "http",
+              "method": "POST",
+              "url": "https://41l5r34h-3001.asse.devtunnels.ms/api/notifications",
+              "body": {
+                "title": "Rejected request.",
+                "message": "Your request was rejected."
+              }
+            }
+          }
+        },
+        {
+          "key": "approved_noti",
+          "type": "service",
+          "config": {
+            "type": "service",
+            "payload": {
+              "type": "http",
+              "method": "POST",
+              "url": "https://41l5r34h-3001.asse.devtunnels.ms/api/notifications",
+              "body": {
+                "title": "Approved",
+                "message": "Your request was approved by manager."
+              }
+            }
+          }
+        },
+        {
+          "key": "process_csv",
+          "type": "service",
+          "config": {
+            "type": "service",
+            "payload": {
+              "type": "http",
+              "method": "POST",
+              "url": "https://41l5r34h-3001.asse.devtunnels.ms/api/process-csv",
+              "body": {
+                "refId": "variables.refId"
+              }
+            }
+          }
+        },
+        {
+          "key": "end",
+          "type": "end"
+        }
+      ],
+      "transitions": [
+        {
+          "fromNode": "start",
+          "toNode": "first_gateway_init"
+        },
+        {
+          "fromNode": "first_gateway_init",
+          "toNode": "send_initial_noti",
+          "branch": "send_initial_noti"
+        },
+        {
+          "fromNode": "first_gateway_init",
+          "toNode": "first_approval_branch",
+          "branch": "first_approval_branch"
+        },
+        {
+          "fromNode": "first_approval_branch",
+          "toNode": "first_decision"
+        },
+        {
+          "fromNode": "first_decision",
+          "toNode": "rejected_noti",
+          "config": {
+            "type": "condition",
+            "payload": {
+              "type": "jexl",
+              "expression": "variables.outputs.first_approval.totalRejection >= 1"
+            }
+          }
+        },
+        {
+          "fromNode": "first_decision",
+          "toNode": "approved_noti",
+          "config": {
+            "type": "condition",
+            "payload": {
+              "type": "jexl",
+              "expression": "variables.outputs.first_approval.totalApproval >= 2"
+            }
+          }
+        },
+        {
+          "fromNode": "rejected_noti",
+          "toNode": "end"
+        },
+        {
+          "fromNode": "approved_noti",
+          "toNode": "process_csv"
+        },
+        {
+          "fromNode": "process_csv",
+          "toNode": "end"
+        }
+      ]
+    }
+  ],
+  "slaDefinitions": [
+    {
+      "name": "Must complete task within 1hour.",
+      "key": "SLA01",
+      "duration": "1h",
+      "effects": [
+        {
+          "type": "ESCALATE",
+          "config": {
+            "roles": ["senior_manager"],
+            "groups": ["G01", "G02", "G03"],
+            "condition": {
+              "type": "jexl",
+              "payload": {
+                "expression": "sla.status == 'breached'"
+              }
+            }
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "type": "jexl",
+          "expression": "task.outputs.status === 'pending'",
+          "status": "breached"
+        },
+        {
+          "type": "jexl",
+          "expression": "task.outputs.status === 'completed'",
+          "status": "met"
+        }
+      ]
+    }
+  ]
+}

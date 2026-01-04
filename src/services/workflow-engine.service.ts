@@ -62,7 +62,8 @@ export class WorkflowEngineService {
   async handleNode(
     instanceId: string,
     nodeKey: string,
-    workflowDefinition: any
+    workflowDefinition: any,
+    branchKey?: string
   ) {
     const prisma = this.c.get("prisma");
     await prisma.workflowInstance.update({
@@ -79,7 +80,12 @@ export class WorkflowEngineService {
       case "start":
         const nextNode = this.findNextNode(nodeKey, workflowDefinition);
         if (nextNode) {
-          await this.handleNode(instanceId, nextNode.key, workflowDefinition);
+          await this.handleNode(
+            instanceId,
+            nextNode.key,
+            workflowDefinition,
+            branchKey
+          );
         }
         break;
       case "parallel_gateway":
@@ -89,13 +95,28 @@ export class WorkflowEngineService {
         await this.handleTaskNode(instanceId, node, workflowDefinition);
         break;
       case "service":
-        await this.handleServiceNode(instanceId, node, workflowDefinition);
+        await this.handleServiceNode(
+          instanceId,
+          node,
+          workflowDefinition,
+          branchKey
+        );
         break;
       case "decision":
-        await this.handleDecisionNode(instanceId, node, workflowDefinition);
+        await this.handleDecisionNode(
+          instanceId,
+          node,
+          workflowDefinition,
+          branchKey
+        );
         break;
       case "parallel_join":
-        await this.handleParallelJoin(instanceId, node, workflowDefinition);
+        await this.handleParallelJoin(
+          instanceId,
+          node,
+          workflowDefinition,
+          branchKey
+        );
         break;
       case "end":
         await this.handleEndNode(instanceId);
@@ -112,6 +133,7 @@ export class WorkflowEngineService {
   ) {
     const prisma = this.c.get("prisma");
     const branches = node.branches || [];
+    console.log("branches ", branches);
 
     for (const branch of branches) {
       const branchInstance = await prisma.parallelBranchInstance.create({
@@ -129,7 +151,8 @@ export class WorkflowEngineService {
         await this.handleNode(
           instanceId,
           firstNodeInBranch.key,
-          workflowDefinition
+          workflowDefinition,
+          branch.key
         );
       }
     }
@@ -189,7 +212,8 @@ export class WorkflowEngineService {
   async handleServiceNode(
     instanceId: string,
     node: any,
-    workflowDefinition: any
+    workflowDefinition: any,
+    branchKey?: string
   ) {
     const prisma = this.c.get("prisma");
     const instance = await prisma.workflowInstance.findUnique({
@@ -209,14 +233,20 @@ export class WorkflowEngineService {
 
     const nextNode = this.findNextNode(node.key, workflowDefinition);
     if (nextNode) {
-      await this.handleNode(instanceId, nextNode.key, workflowDefinition);
+      await this.handleNode(
+        instanceId,
+        nextNode.key,
+        workflowDefinition,
+        branchKey
+      );
     }
   }
 
   async handleDecisionNode(
     instanceId: string,
     node: any,
-    workflowDefinition: any
+    workflowDefinition: any,
+    branchKey?: string
   ) {
     const prisma = this.c.get("prisma");
     const instance = await prisma.workflowInstance.findUnique({
@@ -229,6 +259,9 @@ export class WorkflowEngineService {
     );
     console.log(JSON.stringify(workflowDefinition, null, 2));
     for (const transition of transitions) {
+      const toNode = workflowDefinition.nodes.find(
+        (n: any) => n.key === transition.toNode
+      );
       const condition = transition?.config?.payload;
       console.log("Evaluating condition:", condition);
       if (condition) {
@@ -237,12 +270,36 @@ export class WorkflowEngineService {
         const result = await jexl.eval(expression, context);
         console.log("result", result);
         if (result) {
+          if (toNode && toNode.type === "parallel_join" && branchKey) {
+            await prisma.parallelBranchInstance.updateMany({
+              where: {
+                workflowInstanceId: instanceId,
+                branchKey: branchKey,
+              },
+              data: {
+                status: "completed",
+              },
+            });
+          }
           await this.handleNode(
             instanceId,
             transition.toNode,
-            workflowDefinition
+            workflowDefinition,
+            branchKey
           );
           return;
+        } else {
+          if (toNode && toNode.type === "parallel_join" && branchKey) {
+            await prisma.parallelBranchInstance.updateMany({
+              where: {
+                workflowInstanceId: instanceId,
+                branchKey: branchKey,
+              },
+              data: {
+                status: "completed",
+              },
+            });
+          }
         }
       }
     }
@@ -251,7 +308,8 @@ export class WorkflowEngineService {
   async handleParallelJoin(
     instanceId: string,
     node: any,
-    workflowDefinition: any
+    workflowDefinition: any,
+    branchKey?: string
   ) {
     const prisma = this.c.get("prisma");
     const { dependencies, condition } = node.config;
@@ -264,13 +322,17 @@ export class WorkflowEngineService {
       },
     });
 
+    console.log("finished branches ", finishedBranches);
+
     if (finishedBranches.length === dependencies.length) {
       const instance = await prisma.workflowInstance.findUnique({
         where: { id: instanceId },
       });
+      console.log("instance ", instance);
       if (!instance) return;
 
       const context = { context: { variables: instance.variables } };
+      console.log(condition, "condition");
       if (condition) {
         const expression = await evalTemplate(condition.expression, context);
         const result = await jexl.eval(expression, context);
@@ -281,8 +343,14 @@ export class WorkflowEngineService {
       }
 
       const nextNode = this.findNextNode(node.key, workflowDefinition);
+      console.log("nextNode", nextNode);
       if (nextNode) {
-        await this.handleNode(instanceId, nextNode.key, workflowDefinition);
+        await this.handleNode(
+          instanceId,
+          nextNode.key,
+          workflowDefinition,
+          branchKey
+        );
       }
     }
   }
@@ -319,6 +387,18 @@ export class WorkflowEngineService {
       .getWorkflowByKey(task.workflowId);
     if (!workflowDefinition) return;
 
+    const instance = await prisma.workflowInstance.findUnique({
+      where: { id: task.instanceId },
+      include: { parallelBranches: true },
+    });
+    if (!instance) return;
+
+    const activeBranch = instance.parallelBranches.find(
+      (b) => b.status === "running"
+    );
+
+    console.log("active branch ", activeBranch);
+
     const node = workflowDefinition.nodes.find(
       (n: any) => n.key === task.nodeKey
     );
@@ -348,7 +428,8 @@ export class WorkflowEngineService {
         await this.handleNode(
           task.instanceId,
           nextNode.key,
-          workflowDefinition
+          workflowDefinition,
+          activeBranch?.branchKey
         );
       }
     }

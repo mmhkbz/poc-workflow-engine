@@ -47,6 +47,7 @@
               "key": "operation_approval_branch",
               "name": "Operation Approval Branch",
               "nodes": [
+                "notify_operation_manager",
                 "operation_manager_approval",
                 "operation_manager_decision"
               ]
@@ -55,6 +56,7 @@
               "key": "security_approval_branch",
               "name": "Security Approval Branch",
               "nodes": [
+                "notify_security_manager",
                 "security_manager_approval",
                 "security_manager_decision"
               ]
@@ -66,10 +68,44 @@
           "type": "task",
           "config": {
             "type": "assignment",
-            "roles": ["manager"],
-            "groups": ["operation"],
+            "payload": {
+              "roles": ["manager"],
+              "groups": ["operation"]
+            },
             "slas": ["SLA01"],
             "timers": []
+          }
+        },
+        {
+          "key": "notify_operation_manager",
+          "type": "service",
+          "config": {
+            "type": "service",
+            "payload": {
+              "type": "http",
+              "method": "POST",
+              "url": "https://41l5r34h-3001.asse.devtunnels.ms/api/notifications",
+              "body": {
+                "title": "Inbox",
+                "message": "Operation Manager: Check your inbox for task approval."
+              }
+            }
+          }
+        },
+        {
+          "key": "notify_security_manager",
+          "type": "service",
+          "config": {
+            "type": "service",
+            "payload": {
+              "type": "http",
+              "method": "POST",
+              "url": "https://41l5r34h-3001.asse.devtunnels.ms/api/notifications",
+              "body": {
+                "title": "Inbox",
+                "message": "Security Manager: Check your inbox for task approval."
+              }
+            }
           }
         },
         {
@@ -81,8 +117,10 @@
           "type": "task",
           "config": {
             "type": "assignment",
-            "roles": ["manager"],
-            "groups": ["security"],
+            "payload": {
+              "roles": ["senior_manager"],
+              "groups": ["security"]
+            },
             "slas": ["SLA01"],
             "timers": []
           }
@@ -101,7 +139,7 @@
             ],
             "condition": {
               "type": "jexl",
-              "expression": "${context.variables.outputs.first_gateway.totalApproval} == 2"
+              "expression": "${context.variables.outputs.operation_manager_approval.isApproved} == true || ${context.variables.outputs.security_manager_approval.isApproved} == true"
             }
           }
         },
@@ -164,13 +202,21 @@
         },
         {
           "fromNode": "first_gateway",
-          "toNode": "operation_manager_approval",
+          "toNode": "notify_operation_manager",
           "branch": "operation_approval_branch"
         },
         {
           "fromNode": "first_gateway",
-          "toNode": "security_manager_approval",
+          "toNode": "notify_security_manager",
           "branch": "security_approval_branch"
+        },
+        {
+          "fromNode": "notify_operation_manager",
+          "toNode": "operation_manager_approval"
+        },
+        {
+          "fromNode": "notify_security_manager",
+          "toNode": "security_manager_approval"
         },
         {
           "fromNode": "operation_manager_approval",
@@ -241,6 +287,10 @@
           }
         },
         {
+          "fromNode": "send_approved_noti",
+          "toNode": "process_csv"
+        },
+        {
           "fromNode": "process_csv",
           "toNode": "end"
         }
@@ -255,7 +305,7 @@
       "facts": [
         {
           "level": 1,
-          "targetDuration": "0.1m",
+          "targetDuration": "5m",
           "condition": {
             "type": "jexl",
             "expression": "${local.variables.status} == 'pending'"
@@ -279,7 +329,7 @@
         },
         {
           "level": 2,
-          "targetDuration": "0.3m",
+          "targetDuration": "10m",
           "condition": {
             "type": "jexl",
             "expression": "${local.variables.status} == 'pending'"
@@ -300,7 +350,7 @@
         },
         {
           "level": 3,
-          "targetDuration": "0.5m",
+          "targetDuration": "15m",
           "condition": {
             "type": "jexl",
             "expression": "${local.variables.status} == 'pending'"

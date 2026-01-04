@@ -8,9 +8,6 @@ import { createPrismaClient } from "../libs/prisma";
 import { WorkflowEngineService } from "../services/workflow-engine.service";
 import { TaskService } from "../services/task.service";
 import { createRedis } from "../libs/redis";
-import { createQueue } from "../libs/queue";
-import { QueueName } from "../configs/consts";
-import { createSlaWorker } from "../workers/sla-worker";
 
 export const serviceMiddleware = createMiddleware<Env>(async (c, next) => {
   const { WORKFLOW_MASTER_API_URL, REDIS_HOST, REDIS_PASSWORD, REDIS_PORT } =
@@ -31,12 +28,6 @@ export const serviceMiddleware = createMiddleware<Env>(async (c, next) => {
       password: REDIS_PASSWORD,
     })
   );
-
-  const slaQueue = createQueue({
-    connection: redis,
-    queueName: QueueName.SLA_QUEUE,
-  });
-  c.set("slaQueue", slaQueue);
 
   c.set(
     "workflowMasterApi",

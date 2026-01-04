@@ -8,12 +8,9 @@ import { taskRoute } from "./routes/task.route";
 import { testRoute } from "./routes/test.route";
 import { roleRoute } from "./routes/role.route";
 import { cors } from "hono/cors";
-import { QueueName } from "./configs/consts";
-import ms from "ms";
-import dayjs from "dayjs";
 import { createRedis } from "./libs/redis";
+import { createHttpWorker } from "./workers/http-worker";
 import { createSlaWorker } from "./workers/sla-worker";
-import { createQueue } from "./libs/queue";
 
 const app = new Hono<Env>();
 app.use(serviceMiddleware);
@@ -31,26 +28,26 @@ app.route("/api/v1/roles", roleRoute);
 
 let count = 0;
 
-app.get("/api/v1/test", async (c) => {
-  const redis = c.get("redis");
-  await redis.set("counter", count);
-  await redis.incr("counter");
-  const result = await redis.get("counter");
-  count = Number(result);
-  const slaQueue = c.get("slaQueue");
-  console.log(
-    "new task will be executed on ",
-    dayjs().add(count, "minute").toISOString()
-  );
-  await slaQueue.add(
-    QueueName.SLA_QUEUE,
-    `Test job data with ${result}m delayed.`,
-    {
-      delay: ms(`${count}m`),
-    }
-  );
-  return c.json({ count: result });
-});
+// app.get("/api/v1/test", async (c) => {
+//   const redis = c.get("redis");
+//   await redis.set("counter", count);
+//   await redis.incr("counter");
+//   const result = await redis.get("counter");
+//   count = Number(result);
+//   const slaQueue = c.get("slaQueue");
+//   console.log(
+//     "new task will be executed on ",
+//     dayjs().add(count, "minute").toISOString()
+//   );
+//   await slaQueue.add(
+//     QueueName.SLA_QUEUE,
+//     `Test job data with ${result}m delayed.`,
+//     {
+//       delay: ms(`${count}m`),
+//     }
+//   );
+//   return c.json({ count: result });
+// });
 
 serve(
   {
@@ -68,7 +65,8 @@ serve(
       password: redisPassword,
     });
 
-    createSlaWorker(redis);
+    createHttpWorker({ redis });
+    createSlaWorker({ redis });
 
     console.log(`Server is running on http://localhost:${info.port}`);
   }

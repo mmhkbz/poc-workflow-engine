@@ -1,18 +1,25 @@
 import { Context } from "hono";
-import { Env } from "../types/types";
-import { WorkflowInstance } from "../generated/prisma/client";
-import { httpServiceQueue, slaQueue, timerQueue } from "../libs/queue";
-import { evalTemplate } from "../utils/expr.util";
+import { Env } from "../../types/types";
+import { PrismaClient, WorkflowInstance } from "../../generated/prisma/client";
+import { httpServiceQueue, slaQueue, timerQueue } from "../../libs/queue";
+import { evalTemplate } from "../../utils/expr.util";
 import jexl from "jexl";
-import { QueueName } from "../configs/consts";
-import { SlaService } from "./sla.service";
+import { QueueName } from "../../configs/consts";
 import ms from "ms";
+import { SlaService } from "./sla.service";
+import { createWorkflowMasterApiClient } from "../../libs/axios";
+import { WorkflowMasterService } from "./workflow-master.service";
 
 export class WorkflowEngineService {
   private readonly slaService: SlaService;
+  private readonly workflowMasterService: WorkflowMasterService;
 
-  constructor(private readonly c: Context<Env>) {
-    this.slaService = new SlaService(c);
+  constructor(private readonly prisma: PrismaClient) {
+    const apiClient = createWorkflowMasterApiClient(
+      process.env.WORKFLOW_MASTER_API_URL || ""
+    );
+    this.slaService = new SlaService(apiClient);
+    this.workflowMasterService = new WorkflowMasterService(apiClient);
   }
 
   async startWorkflow(params: {
@@ -21,8 +28,8 @@ export class WorkflowEngineService {
     createdBy: string;
     refId: string;
   }): Promise<WorkflowInstance> {
-    const prisma = this.c.get("prisma");
-    const workflowMasterService = this.c.get("workflowMasterService");
+    const prisma = this.prisma;
+    const workflowMasterService = this.workflowMasterService;
 
     const workflowDefinition = await workflowMasterService.getWorkflowByKey(
       params.key
@@ -64,13 +71,14 @@ export class WorkflowEngineService {
     nodeKey: string,
     workflowDefinition: any
   ) {
-    const prisma = this.c.get("prisma");
+    const prisma = this.prisma;
     await prisma.workflowInstance.update({
       where: { id: instanceId },
       data: { currentNode: nodeKey },
     });
 
     const node = workflowDefinition.nodes.find((n: any) => n.key === nodeKey);
+    console.log("node ", node);
     if (!node) {
       throw new Error(`Node with key ${nodeKey} not found`);
     }
@@ -110,7 +118,7 @@ export class WorkflowEngineService {
     node: any,
     workflowDefinition: any
   ) {
-    const prisma = this.c.get("prisma");
+    const prisma = this.prisma;
     const branches = node.branches || [];
 
     for (const branch of branches) {
@@ -136,7 +144,7 @@ export class WorkflowEngineService {
   }
 
   async handleTaskNode(instanceId: string, node: any, workflowDefinition: any) {
-    const prisma = this.c.get("prisma");
+    const prisma = this.prisma;
     const instance = await prisma.workflowInstance.findUnique({
       where: { id: instanceId },
     });
@@ -191,12 +199,13 @@ export class WorkflowEngineService {
     node: any,
     workflowDefinition: any
   ) {
-    const prisma = this.c.get("prisma");
+    const prisma = this.prisma;
     const instance = await prisma.workflowInstance.findUnique({
       where: { id: instanceId },
     });
     const { payload } = node.config;
     if (payload.type === "http") {
+      console.log("payload ", payload);
       await httpServiceQueue.add(
         QueueName.HTTP_SERVICE_QUEUE,
         payload
@@ -218,7 +227,7 @@ export class WorkflowEngineService {
     node: any,
     workflowDefinition: any
   ) {
-    const prisma = this.c.get("prisma");
+    const prisma = this.prisma;
     const instance = await prisma.workflowInstance.findUnique({
       where: { id: instanceId },
     });
@@ -253,7 +262,7 @@ export class WorkflowEngineService {
     node: any,
     workflowDefinition: any
   ) {
-    const prisma = this.c.get("prisma");
+    const prisma = this.prisma;
     const { dependencies, condition } = node.config;
 
     const finishedBranches = await prisma.parallelBranchInstance.findMany({
@@ -288,7 +297,7 @@ export class WorkflowEngineService {
   }
 
   async handleEndNode(instanceId: string) {
-    const prisma = this.c.get("prisma");
+    const prisma = this.prisma;
     await prisma.workflowInstance.update({
       where: { id: instanceId },
       data: { status: "completed" },
@@ -308,15 +317,14 @@ export class WorkflowEngineService {
   }
 
   async completeTask(taskId: string, data: any) {
-    const prisma = this.c.get("prisma");
+    const prisma = this.prisma;
     const task = await prisma.task.update({
       where: { id: taskId },
       data: { status: "completed", outputs: data },
     });
 
-    const workflowDefinition = await this.c
-      .get("workflowMasterService")
-      .getWorkflowByKey(task.workflowId);
+    const workflowDefinition =
+      await this.workflowMasterService.getWorkflowByKey(task.workflowId);
     if (!workflowDefinition) return;
 
     const node = workflowDefinition.nodes.find(

@@ -52,12 +52,9 @@ taskRoute.post("/:taskId/complete", async (c) => {
     );
   }
 
-  await c.get("taskService").completeTask({
-    taskId,
-    instance,
-    isApproved,
-    remark,
-  } as any);
+  await c
+    .get("workflowEngineService")
+    .completeTask(taskId, { isApproved, remark });
 
   return c.json(
     dataResponse(

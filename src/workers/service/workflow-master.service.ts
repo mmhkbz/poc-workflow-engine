@@ -1,12 +1,13 @@
 import { Context } from "hono";
-import { Env } from "../types/types";
+import { Env } from "../../types/types";
 import * as fs from "fs/promises";
 import * as path from "path";
+import { AxiosInstance } from "axios";
 
 export class WorkflowMasterService {
   private workflowDefinitions: any;
 
-  constructor(private readonly c: Context<Env>) {
+  constructor(private readonly api: AxiosInstance) {
     this.loadWorkflowDefinitions();
   }
 
@@ -23,8 +24,7 @@ export class WorkflowMasterService {
 
   async getWorkflowByKey(key: string) {
     try {
-      const api = this.c.get("workflowMasterApi");
-      const res = await api.get(`/workflows?key=${key}`);
+      const res = await this.api.get(`/workflows?key=${key}`);
       return res.data?.at(0) || null;
     } catch (e) {
       console.log("Error fetching workflow:", e);
@@ -34,8 +34,7 @@ export class WorkflowMasterService {
 
   async getWorkflows() {
     try {
-      const api = this.c.get("workflowMasterApi");
-      const res = await api.get(`/workflows`);
+      const res = await this.api.get(`/workflows`);
       return res.data || [];
     } catch (e) {
       console.log("Error fetching workflows:", e);
@@ -45,8 +44,7 @@ export class WorkflowMasterService {
 
   async getRoles() {
     try {
-      const api = this.c.get("workflowMasterApi");
-      const res = await api.get(`/roles`);
+      const res = await this.api.get(`/roles`);
       return res.data || [];
     } catch (e) {
       console.log("Error fetching roles:", e);
@@ -56,9 +54,7 @@ export class WorkflowMasterService {
 
   async createWorkflow(data: any) {
     try {
-      const res = await this.c
-        .get("workflowMasterApi")
-        .post("/workflows", data);
+      const res = await this.api.post("/workflows", data);
       return res.data;
     } catch (e) {
       console.log("Error creating workflow:", e);

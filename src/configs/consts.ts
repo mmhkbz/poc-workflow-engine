@@ -46,4 +46,7 @@ export enum ServiceType {
 
 export enum QueueName {
   SLA_QUEUE = "sla-queue",
+  HTTP_SERVICE_QUEUE = "http-service-queue",
+  NOTIFICATION_QUEUE = "notification-queue",
+  TIMER_QUEUE = "timer-queue",
 }

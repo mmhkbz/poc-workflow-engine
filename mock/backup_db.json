@@ -109,7 +109,7 @@
               "method": "POST",
               "url": "https://41l5r34h-3001.asse.devtunnels.ms/api/process-csv",
               "body": {
-                "refId": "variables.refId"
+                "refId": "${context.variables.refId}"
               }
             }
           }
@@ -135,7 +135,7 @@
             "type": "condition",
             "payload": {
               "type": "jexl",
-              "expression": "variables.outputs.first_approval.isApproved == false"
+              "expression": "${context.variables.outputs.first_approval.isApproved} == false"
             }
           }
         },
@@ -146,7 +146,7 @@
             "type": "condition",
             "payload": {
               "type": "jexl",
-              "expression": "variables.outputs.first_approval.isApproved == true"
+              "expression": "${context.variables.outputs.first_approval.isApproved} == true"
             }
           }
         },
@@ -244,7 +244,7 @@
               "method": "POST",
               "url": "https://41l5r34h-3001.asse.devtunnels.ms/api/process-csv",
               "body": {
-                "refId": "variables.refId"
+                "refId": "${context.variables.refId}"
               }
             }
           }
@@ -270,7 +270,7 @@
             "type": "condition",
             "payload": {
               "type": "jexl",
-              "expression": "variables.outputs.first_approval.isApproved == false"
+              "expression": "${context.variables.outputs.first_approval.isApproved} == false"
             }
           }
         },
@@ -281,7 +281,7 @@
             "type": "condition",
             "payload": {
               "type": "jexl",
-              "expression": "variables.outputs.first_approval.isApproved == true"
+              "expression": "${context.variables.outputs.first_approval.isApproved} == true"
             }
           }
         },
@@ -296,7 +296,7 @@
             "type": "condition",
             "payload": {
               "type": "jexl",
-              "expression": "variables.outputs.second_approval.isApproved == false"
+              "expression": "${context.variables.outputs.second_approval.isApproved} == false"
             }
           }
         },
@@ -307,7 +307,7 @@
             "type": "condition",
             "payload": {
               "type": "jexl",
-              "expression": "variables.outputs.second_approval.isApproved == true"
+              "expression": "${context.variables.outputs.second_approval.isApproved} == true"
             }
           }
         },
@@ -424,7 +424,7 @@
               "method": "POST",
               "url": "https://41l5r34h-3001.asse.devtunnels.ms/api/process-csv",
               "body": {
-                "refId": "variables.refId"
+                "refId": "${context.variables.refId}"
               }
             }
           }
@@ -446,7 +446,7 @@
             "type": "condition",
             "payload": {
               "type": "jexl",
-              "expression": "variables.outputs.first_approval.isApproved == false"
+              "expression": "${context.variables.outputs.first_approval.isApproved} == false"
             }
           }
         },
@@ -457,7 +457,7 @@
             "type": "condition",
             "payload": {
               "type": "jexl",
-              "expression": "variables.outputs.first_approval.isApproved == true"
+              "expression": "${context.variables.outputs.first_approval.isApproved} == true"
             }
           }
         },
@@ -472,7 +472,7 @@
             "type": "condition",
             "payload": {
               "type": "jexl",
-              "expression": "variables.outputs.second_approval.isApproved == true"
+              "expression": "${context.variables.outputs.second_approval.isApproved} == true"
             }
           }
         },
@@ -483,7 +483,7 @@
             "type": "condition",
             "payload": {
               "type": "jexl",
-              "expression": "variables.outputs.second_approval.isApproved == false"
+              "expression": "${context.variables.outputs.second_approval.isApproved} == false"
             }
           }
         },
@@ -498,7 +498,7 @@
             "type": "condition",
             "payload": {
               "type": "jexl",
-              "expression": "variables.outputs.third_approval.isApproved == false"
+              "expression": "${context.variables.outputs.third_approval.isApproved} == false"
             }
           }
         },
@@ -509,7 +509,7 @@
             "type": "condition",
             "payload": {
               "type": "jexl",
-              "expression": "variables.outputs.third_approval.isApproved == true"
+              "expression": "${context.variables.outputs.first_approval.isApproved} == true"
             }
           }
         },
@@ -623,7 +623,7 @@
               "method": "POST",
               "url": "https://41l5r34h-3001.asse.devtunnels.ms/api/process-csv",
               "body": {
-                "refId": "variables.refId"
+                "refId": "${context.variables.refId}"
               },
               "headers": {
                 "Content-Type": "application/json"
@@ -652,7 +652,7 @@
             "type": "condition",
             "payload": {
               "type": "jexl",
-              "expression": "variables.outputs.first_approval.isApproved == false"
+              "expression": "${context.variables.outputs.first_approval.isApproved} == false"
             }
           }
         },
@@ -663,7 +663,7 @@
             "type": "condition",
             "payload": {
               "type": "jexl",
-              "expression": "variables.outputs.first_approval.isApproved == true"
+              "expression": "${context.variables.outputs.first_approval.isApproved} == true"
             }
           }
         },
@@ -682,7 +682,7 @@
             "type": "condition",
             "payload": {
               "type": "jexl",
-              "expression": "variables.outputs.second_approval.isApproved == false"
+              "expression": "${context.variables.outputs.second_approval.isApproved} == false"
             }
           }
         },
@@ -693,7 +693,7 @@
             "type": "condition",
             "payload": {
               "type": "jexl",
-              "expression": "variables.outputs.second_approval.isApproved == true"
+              "expression": "${context.variables.outputs.second_approval.isApproved} == true"
             }
           }
         },

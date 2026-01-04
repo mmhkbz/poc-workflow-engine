@@ -1,0 +1,221 @@
+{
+  "workflowDefinitions": [
+    {
+      "name": "Parallel Workflow (Manager + Senior Manager) from Two Departments",
+      "key": "parallel_workflow_01",
+      "nodes": [
+        {
+          "key": "start",
+          "description": "Start Node",
+          "type": "start"
+        },
+        {
+          "key": "first_gateway",
+          "type": "parallel_gateway",
+          "description": "Parallel Gateway Node",
+          "branches": [
+            {
+              "key": "operation_approval_branch",
+              "name": "Operation Approval Branch",
+              "nodes": [
+                "operation_manager_approval",
+                "operation_manager_decision"
+              ]
+            },
+            {
+              "key": "security_approval_branch",
+              "name": "Security Approval Branch",
+              "nodes": [
+                "security_manager_approval",
+                "security_manager_decision"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "operation_manager_approval",
+          "type": "task",
+          "config": {
+            "type": "assignment",
+            "roles": ["manager"],
+            "groups": ["operation"],
+            "slas": ["SLA01"],
+            "timers": []
+          }
+        },
+        {
+          "key": "operation_manager_decision",
+          "type": "decision"
+        },
+        {
+          "key": "security_manager_approval",
+          "type": "task",
+          "config": {
+            "type": "assignment",
+            "roles": ["manager"],
+            "groups": ["security"],
+            "slas": ["SLA01"],
+            "timers": []
+          }
+        },
+        {
+          "key": "security_manager_decision",
+          "type": "decision"
+        },
+        {
+          "key": "first_gateway_join",
+          "type": "parallel_join",
+          "config": {
+            "dependencies": [
+              "operation_approval_branch",
+              "security_approval_branch"
+            ],
+            "condition": {
+              "type": "jexl",
+              "expression": "${context.variables.outputs.first_gateway.totalApproval} == 2"
+            }
+          }
+        },
+        {
+          "key": "send_approved_noti",
+          "type": "service",
+          "config": {
+            "type": "service",
+            "payload": {
+              "type": "http",
+              "method": "POST",
+              "url": "https://41l5r34h-3001.asse.devtunnels.ms/api/notifications",
+              "body": {
+                "title": "Approved",
+                "message": "Your request was approved by manager."
+              }
+            }
+          }
+        },
+        {
+          "key": "send_rejected_noti",
+          "type": "service",
+          "config": {
+            "type": "service",
+            "payload": {
+              "type": "http",
+              "method": "POST",
+              "url": "https://41l5r34h-3001.asse.devtunnels.ms/api/notifications",
+              "body": {
+                "title": "Rejected",
+                "message": "Your request was rejected by manager."
+              }
+            }
+          }
+        },
+        {
+          "key": "process_csv",
+          "type": "service",
+          "config": {
+            "type": "service",
+            "payload": {
+              "type": "http",
+              "method": "POST",
+              "url": "https://41l5r34h-3001.asse.devtunnels.ms/api/process-csv",
+              "body": {
+                "refId": "variables.refId"
+              }
+            }
+          }
+        },
+        {
+          "key": "end",
+          "type": "end"
+        }
+      ],
+      "transitions": [
+        {
+          "fromNode": "start",
+          "toNode": "first_gateway"
+        },
+        {
+          "fromNode": "first_gateway",
+          "toNode": "operation_manager_approval",
+          "branch": "operation_approval_branch"
+        },
+        {
+          "fromNode": "first_gateway",
+          "toNode": "security_manager_approval",
+          "branch": "security_approval_branch"
+        },
+        {
+          "fromNode": "operation_manager_approval",
+          "toNode": "operation_manager_decision"
+        },
+        {
+          "fromNode": "operation_manager_decision",
+          "toNode": "first_gateway_join",
+          "config": {
+            "type": "condition",
+            "payload": {
+              "type": "jexl",
+              "expression": "${context.variables.outputs.operation_manager_approval.isApproved} == true"
+            }
+          }
+        },
+        {
+          "fromNode": "security_manager_approval",
+          "toNode": "security_manager_decision"
+        },
+        {
+          "fromNode": "security_manager_decision",
+          "toNode": "first_gateway_join",
+          "config": {
+            "type": "condition",
+            "payload": {
+              "type": "jexl",
+              "expression": "${context.variables.outputs.security_manager_approval.isApproved} == true"
+            }
+          }
+        },
+        {
+          "fromNode": "operation_manager_decision",
+          "toNode": "send_rejected_noti",
+          "config": {
+            "type": "condition",
+            "payload": {
+              "type": "jexl",
+              "expression": "${context.variables.outputs.operation_manager_approval.isApproved} == false"
+            }
+          }
+        },
+        {
+          "fromNode": "security_manager_decision",
+          "toNode": "send_rejected_noti",
+          "config": {
+            "type": "condition",
+            "payload": {
+              "type": "jexl",
+              "expression": "${context.variables.outputs.security_manager_approval.isApproved} == false"
+            }
+          }
+        },
+        {
+          "fromNode": "first_gateway_join",
+          "toNode": "send_approved_noti"
+        },
+        {
+          "fromNode": "first_gateway_join",
+          "toNode": "process_csv"
+        },
+        {
+          "fromNode": "send_rejected_noti",
+          "toNode": "end",
+          "config": {
+            "type": "condition",
+            "expression": "${context.variables.outputs.security_manager_approval.isApproved} == false && ${context.variables.security_manager_approval.isApproved} == false"
+          }
+        },
+        {
+          "fromNode": "process_csv",
+          "toNode": "end"
+        }
+      ]
+    }
+  ]
+}

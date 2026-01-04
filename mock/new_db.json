@@ -20,9 +20,8 @@
         },
         {
           "key": "first_gateway_init",
-          "type": "gateway",
-          "branches": ["send_initial_noti", "first_approval_branch"],
-          "gatewayType": "fork"
+          "type": "gateway_fork",
+          "branches": ["send_initial_noti", "first_approval_branch"]
         },
         {
           "key": "first_approval",
@@ -84,7 +83,9 @@
               }
             }
           ],
-          "branch": "first_approval_branch"
+          "branch": "first_approval_branch",
+          "slas": [],
+          "timers": []
         },
         {
           "key": "send_initial_noti",

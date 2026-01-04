@@ -50,6 +50,10 @@ model Task {
   slas           SlaInstance[]
   timers         TimerInstance[]
 
+  escalatedFromTaskId String?            @unique
+  escalatedFrom       Task?              @relation("TaskEscalation", fields: [escalatedFromTaskId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  escalation          Task?              @relation("TaskEscalation")
+
   @@index([instanceId])
   @@map("tasks")
 }
@@ -117,6 +121,7 @@ enum TaskStatus {
   assigned
   completed
   failed
+  escalated
 }
 
 enum BranchStatus {

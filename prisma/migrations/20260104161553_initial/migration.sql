@@ -2,7 +2,7 @@
 CREATE TYPE "WorkflowInstanceStatus" AS ENUM ('running', 'completed', 'failed', 'cancelled');
 
 -- CreateEnum
-CREATE TYPE "TaskStatus" AS ENUM ('pending', 'assigned', 'completed', 'failed');
+CREATE TYPE "TaskStatus" AS ENUM ('pending', 'assigned', 'completed', 'failed', 'escalated');
 
 -- CreateEnum
 CREATE TYPE "BranchStatus" AS ENUM ('running', 'completed', 'failed');
@@ -18,19 +18,6 @@ CREATE TYPE "JobStatus" AS ENUM ('pending', 'completed', 'failed');
 
 -- CreateEnum
 CREATE TYPE "JobType" AS ENUM ('notification', 'sla', 'timer', 'workflow');
-
--- CreateTable
-CREATE TABLE "workflow_definitions" (
-    "id" TEXT NOT NULL,
-    "key" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "description" TEXT,
-    "definition" JSONB NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "workflow_definitions_pkey" PRIMARY KEY ("id")
-);
 
 -- CreateTable
 CREATE TABLE "workflow_instances" (
@@ -64,6 +51,7 @@ CREATE TABLE "tasks" (
     "updatedBy" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "escalatedFromTaskId" TEXT,
 
     CONSTRAINT "tasks_pkey" PRIMARY KEY ("id")
 );
@@ -121,10 +109,10 @@ CREATE TABLE "jobs" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "workflow_definitions_key_key" ON "workflow_definitions"("key");
+CREATE INDEX "workflow_instances_workflowId_idx" ON "workflow_instances"("workflowId");
 
 -- CreateIndex
-CREATE INDEX "workflow_instances_workflowId_idx" ON "workflow_instances"("workflowId");
+CREATE UNIQUE INDEX "tasks_escalatedFromTaskId_key" ON "tasks"("escalatedFromTaskId");
 
 -- CreateIndex
 CREATE INDEX "tasks_instanceId_idx" ON "tasks"("instanceId");
@@ -133,10 +121,10 @@ CREATE INDEX "tasks_instanceId_idx" ON "tasks"("instanceId");
 CREATE UNIQUE INDEX "jobs_jobId_key" ON "jobs"("jobId");
 
 -- AddForeignKey
-ALTER TABLE "workflow_instances" ADD CONSTRAINT "workflow_instances_workflowId_fkey" FOREIGN KEY ("workflowId") REFERENCES "workflow_definitions"("key") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "tasks" ADD CONSTRAINT "tasks_instanceId_fkey" FOREIGN KEY ("instanceId") REFERENCES "workflow_instances"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "tasks" ADD CONSTRAINT "tasks_instanceId_fkey" FOREIGN KEY ("instanceId") REFERENCES "workflow_instances"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "tasks" ADD CONSTRAINT "tasks_escalatedFromTaskId_fkey" FOREIGN KEY ("escalatedFromTaskId") REFERENCES "tasks"("id") ON DELETE NO ACTION ON UPDATE NO ACTION;
 
 -- AddForeignKey
 ALTER TABLE "parallel_branch_instances" ADD CONSTRAINT "parallel_branch_instances_workflowInstanceId_fkey" FOREIGN KEY ("workflowInstanceId") REFERENCES "workflow_instances"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

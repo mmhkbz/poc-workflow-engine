@@ -305,7 +305,7 @@
       "facts": [
         {
           "level": 1,
-          "targetDuration": "5m",
+          "targetDuration": "0.3m",
           "condition": {
             "type": "jexl",
             "expression": "${local.variables.status} == 'pending'"
@@ -329,7 +329,7 @@
         },
         {
           "level": 2,
-          "targetDuration": "10m",
+          "targetDuration": "0.5m",
           "condition": {
             "type": "jexl",
             "expression": "${local.variables.status} == 'pending'"
@@ -339,7 +339,7 @@
               "type": "escalate",
               "config": {
                 "type": "role",
-                "roles": ["senior_manager"]
+                "roles": ["ceo"]
               },
               "condition": {
                 "type": "jexl",
@@ -350,7 +350,7 @@
         },
         {
           "level": 3,
-          "targetDuration": "15m",
+          "targetDuration": "1m",
           "condition": {
             "type": "jexl",
             "expression": "${local.variables.status} == 'pending'"

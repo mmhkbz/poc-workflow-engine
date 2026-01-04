@@ -63,10 +63,26 @@ export const createSlaWorker = (params: CreateSlaWorkerParams) => {
                 );
                 break;
               case "escalate":
-                await prisma.task.update({
-                  where: { id: slaInstance.taskId },
-                  data: { assignedRoleId: action.config.roles.join(",") },
-                });
+                const originalTask = slaInstance.task;
+                await prisma.$transaction([
+                  prisma.task.update({
+                    where: { id: originalTask.id },
+                    data: { status: "escalated" },
+                  }),
+                  prisma.task.create({
+                    data: {
+                      status: "pending",
+                      workflowId: originalTask.workflowId,
+                      nodeKey: originalTask.nodeKey,
+                      instanceId: originalTask.instanceId,
+                      inputs: originalTask.inputs || (undefined as any),
+                      outputs: originalTask.outputs || (undefined as any),
+                      assignedRoleId: action.config.roles.join(","),
+                      escalatedFromTaskId: originalTask.id,
+                    },
+                  }),
+                ]);
+
                 break;
               case "mutation":
                 if (action.config.type === "transition") {

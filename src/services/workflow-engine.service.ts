@@ -50,6 +50,8 @@ export class WorkflowEngineService {
       },
     });
 
+    console.log("workflow instnace", workflowInstance.id);
+
     await this.handleNode(
       workflowInstance.id,
       startNode.key,
@@ -381,6 +383,13 @@ export class WorkflowEngineService {
       where: { id: taskId },
       data: { status: "completed", outputs: data },
     });
+
+    if (task.escalatedFromTaskId) {
+      await prisma.task.update({
+        where: { id: task.escalatedFromTaskId },
+        data: { status: "completed", outputs: data },
+      });
+    }
 
     const workflowDefinition = await this.c
       .get("workflowMasterService")

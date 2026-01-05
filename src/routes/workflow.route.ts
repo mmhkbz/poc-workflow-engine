@@ -16,13 +16,11 @@ workflowRoute.get("/", async (c) => {
 
 workflowRoute.post("/start", async (c) => {
   const body = await c.req.json();
-  const prisma = c.get("prisma");
   const userId = c.req.header("x-user-id") || DEFAULT_USER;
 
   const savedInstance = await c.get("workflowEngineService").startWorkflow({
     key: body.workflowId || DEFAULT_WORKFLOW,
     context: body.context || {},
-    payloadId: body.payloadId || "",
     createdBy: userId,
     refId: body.refId || "",
   });

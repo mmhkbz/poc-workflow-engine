@@ -65,4 +65,74 @@ export class WorkflowMasterService {
       throw e;
     }
   }
+
+  async createSla(data: any) {
+    try {
+      const res = await this.c
+        .get("workflowMasterApi")
+        .post("/slaDefinitions", data);
+      return res.data;
+    } catch (e) {
+      console.log("Error creating SLA:", e);
+      throw e;
+    }
+  }
+
+  async createTimer(data: any) {
+    try {
+      const res = await this.c
+        .get("workflowMasterApi")
+        .post("/timerDefinitions", data);
+      return res.data;
+    } catch (e) {
+      console.log("Error creating timer:", e);
+      throw e;
+    }
+  }
+
+  async getSlas() {
+    try {
+      const res = await this.c.get("workflowMasterApi").get("/slaDefinitions");
+      return res.data || [];
+    } catch (e) {
+      console.log("Error fetching SLAs:", e);
+      throw e;
+    }
+  }
+
+  async getTimers() {
+    try {
+      const res = await this.c
+        .get("workflowMasterApi")
+        .get("/timerDefinitions");
+      return res.data || [];
+    } catch (e) {
+      console.log("Error fetching timers:", e);
+      throw e;
+    }
+  }
+
+  async getSlaByKey(key: string) {
+    try {
+      const res = await this.c
+        .get("workflowMasterApi")
+        .get(`/slaDefinitions?key=${key}`);
+      return res.data?.at(0) || null;
+    } catch (e) {
+      console.log("Error fetching SLA definition:", e);
+      throw e;
+    }
+  }
+
+  async getTimerByKey(key: string) {
+    try {
+      const res = await this.c
+        .get("workflowMasterApi")
+        .get(`/timerDefinitions?key=${key}`);
+      return res.data?.at(0) || null;
+    } catch (e) {
+      console.log("Error fetching timer definition:", e);
+      throw e;
+    }
+  }
 }

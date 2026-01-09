@@ -18,6 +18,8 @@ workflowRoute.post("/start", async (c) => {
   const body = await c.req.json();
   const userId = c.req.header("x-user-id") || DEFAULT_USER;
 
+  console.log(body);
+
   const savedInstance = await c.get("workflowEngineService").startWorkflow({
     key: body.workflowId || DEFAULT_WORKFLOW,
     context: body.context || {},

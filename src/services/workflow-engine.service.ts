@@ -181,7 +181,7 @@ export class WorkflowEngineService {
       },
     });
 
-    if (node.config.slas) {
+    if (node.config?.slas) {
       for (const slaKey of node.config.slas) {
         const slaDef = await this.slaService.getSlaByKey(slaKey);
         if (slaDef) {
@@ -204,7 +204,7 @@ export class WorkflowEngineService {
       }
     }
 
-    if (node.config.timers) {
+    if (node.config?.timers) {
       for (const timer of node.config.timers) {
         await timerQueue.add("timer", { taskId: task.id, timer: timer });
       }

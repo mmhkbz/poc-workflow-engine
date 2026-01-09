@@ -88,11 +88,28 @@ export const createSlaWorker = (params: CreateSlaWorkerParams) => {
                 if (action.config.type === "transition") {
                   console.log("action", action);
                   const workflowEngine = new WorkflowEngineService(prisma);
-                  const task = await prisma.task.findUnique({
-                    where: { id: slaInstance.taskId },
+                  const task = await prisma.task.updateMany({
+                    where: {
+                      OR: [
+                        {
+                          id: slaInstance.taskId,
+                        },
+                        {
+                          escalatedFromTaskId: slaInstance.taskId,
+                        },
+                      ],
+                    },
+                    data: {
+                      status: "failed",
+                    },
                   });
                   console.log("task", task);
                   if (task) {
+                    console.log("task.instanceId", task);
+                    await prisma.task.update({
+                      where: { id: slaInstance.taskId },
+                      data: { status: "failed" }, // TODO: to fix
+                    });
                     const instance = await prisma.workflowInstance.findUnique({
                       where: { id: task.instanceId },
                     });

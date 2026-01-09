@@ -20,12 +20,14 @@
     {
       "key": "user1",
       "name": "User 1",
-      "roles": ["manager"]
+      "roles": ["manager"],
+      "id": "89c5"
     },
     {
       "key": "user2",
       "name": "User 2",
-      "roles": ["senior_manager"]
+      "roles": ["senior_manager"],
+      "id": "05bb"
     }
   ],
   "workflows": [
@@ -294,6 +296,326 @@
           "fromNode": "process_csv",
           "toNode": "end"
         }
+      ],
+      "id": "14f3"
+    },
+    {
+      "id": "278a",
+      "key": "sample-01",
+      "name": "sample",
+      "nodes": [
+        {
+          "key": "start",
+          "type": "start",
+          "description": "Start"
+        },
+        {
+          "key": "manager_approval",
+          "type": "task",
+          "config": {
+            "type": "assignment",
+            "payload": {
+              "roles": ["manager"],
+              "groups": ["operation"]
+            },
+            "slas": ["SLA02"],
+            "timers": []
+          }
+        },
+        {
+          "key": "manager_decision",
+          "type": "decision",
+          "description": "Manager Decision"
+        },
+        {
+          "key": "send_reject_noti",
+          "type": "service",
+          "description": "Send Rejected Notification",
+          "config": {
+            "type": "service",
+            "payload": {
+              "type": "http",
+              "method": "POST",
+              "url": "https://41l5r34h-3001.asse.devtunnels.ms/api/notifications",
+              "body": {
+                "title": "Check your inbox!",
+                "message": "Your request was rejected."
+              }
+            }
+          }
+        },
+        {
+          "key": "sent_approve_noti",
+          "type": "service",
+          "description": "Sent Approve Notification",
+          "config": {
+            "type": "service",
+            "payload": {
+              "type": "http",
+              "method": "POST",
+              "url": "https://41l5r34h-3001.asse.devtunnels.ms/api/notifications",
+              "body": {
+                "title": "Check your inbox!",
+                "message": "Your request was approved."
+              }
+            }
+          }
+        },
+        {
+          "key": "process_csv",
+          "type": "service",
+          "description": "Process CSV",
+          "config": {
+            "type": "service",
+            "payload": {
+              "type": "http",
+              "method": "POST",
+              "url": "https://41l5r34h-3001.asse.devtunnels.ms/api/process-csv",
+              "body": {
+                "refId": "${context.variables.refId}"
+              }
+            }
+          }
+        },
+        {
+          "key": "end",
+          "type": "end",
+          "description": "New end"
+        }
+      ],
+      "transitions": [
+        {
+          "fromNode": "start",
+          "toNode": "manager_approval"
+        },
+        {
+          "fromNode": "manager_approval",
+          "toNode": "manager_decision"
+        },
+        {
+          "fromNode": "manager_decision",
+          "toNode": "send_reject_noti",
+          "config": {
+            "type": "condition",
+            "payload": {
+              "type": "jexl",
+              "expression": "${context.variables.outputs.manager_approval.isApproved} == false"
+            }
+          }
+        },
+        {
+          "fromNode": "manager_decision",
+          "toNode": "sent_approve_noti",
+          "config": {
+            "type": "condition",
+            "payload": {
+              "type": "jexl",
+              "expression": "${context.variables.outputs.manager_approval.isApproved} == true"
+            }
+          }
+        },
+        {
+          "fromNode": "sent_approve_noti",
+          "toNode": "process_csv"
+        },
+        {
+          "fromNode": "process_csv",
+          "toNode": "end"
+        },
+        {
+          "fromNode": "send_reject_noti",
+          "toNode": "end"
+        }
+      ]
+    },
+    {
+      "key": "SWITCH_WORKFLOW_01",
+      "name": "SWITCH_WORKFLOW_01",
+      "nodes": [
+        {
+          "key": "start",
+          "type": "start",
+          "description": "Start"
+        },
+        {
+          "key": "send_reject_noti",
+          "type": "service",
+          "description": "Send Rejected Notification",
+          "config": {
+            "type": "service",
+            "payload": {
+              "type": "http",
+              "method": "POST",
+              "url": "https://41l5r34h-3001.asse.devtunnels.ms/api/notifications",
+              "body": {
+                "title": "Check your inbox!",
+                "message": "Your request was rejected."
+              }
+            }
+          }
+        },
+        {
+          "key": "sent_approve_noti",
+          "type": "service",
+          "description": "Sent Approve Notification",
+          "config": {
+            "type": "service",
+            "payload": {
+              "type": "http",
+              "method": "POST",
+              "url": "https://41l5r34h-3001.asse.devtunnels.ms/api/notifications",
+              "body": {
+                "title": "KZM Approved!",
+                "message": "Your request was approved by KZ."
+              }
+            }
+          }
+        },
+        {
+          "key": "process_csv",
+          "type": "service",
+          "description": "Process CSV",
+          "config": {
+            "type": "service",
+            "payload": {
+              "type": "http",
+              "method": "POST",
+              "url": "https://41l5r34h-3001.asse.devtunnels.ms/api/process-csv",
+              "body": {
+                "refId": "${context.variables.refId}"
+              }
+            }
+          }
+        },
+        {
+          "key": "manager_approval",
+          "type": "task",
+          "description": "Manager Approval",
+          "config": {
+            "type": "assignment",
+            "slas": [],
+            "timers": [],
+            "payload": {
+              "roles": ["manager"],
+              "groups": []
+            }
+          }
+        },
+        {
+          "key": "senior_manager_approval",
+          "type": "task",
+          "description": "Senior Manager Approval",
+          "config": {
+            "type": "assignment",
+            "slas": [],
+            "timers": [],
+            "payload": {
+              "roles": ["senior_manager"],
+              "groups": []
+            }
+          }
+        },
+        {
+          "key": "ceo_approval",
+          "type": "task",
+          "description": "CEO Approval",
+          "config": {
+            "type": "assignment",
+            "slas": [],
+            "timers": [],
+            "payload": {
+              "roles": ["ceo"],
+              "groups": []
+            }
+          }
+        },
+        {
+          "key": "approval_decision",
+          "type": "decision",
+          "description": "Approval Decision"
+        },
+        {
+          "key": "target_decision",
+          "type": "decision",
+          "description": "Target Decision"
+        }
+      ],
+      "transitions": [
+        {
+          "fromNode": "manager_approval",
+          "toNode": "approval_decision"
+        },
+        {
+          "fromNode": "senior_manager_approval",
+          "toNode": "approval_decision"
+        },
+        {
+          "fromNode": "ceo_approval",
+          "toNode": "approval_decision"
+        },
+        {
+          "fromNode": "start",
+          "toNode": "target_decision"
+        },
+        {
+          "fromNode": "target_decision",
+          "toNode": "manager_approval",
+          "config": {
+            "type": "condition",
+            "payload": {
+              "type": "jexl",
+              "expression": "${context.variables.amount} <= 100000 "
+            }
+          }
+        },
+        {
+          "fromNode": "target_decision",
+          "toNode": "senior_manager_approval",
+          "config": {
+            "type": "condition",
+            "payload": {
+              "type": "jexl",
+              "expression": "${context.variables.amount} > 100000 && ${context.variables.amount} <= 1000000"
+            }
+          }
+        },
+        {
+          "fromNode": "target_decision",
+          "toNode": "ceo_approval",
+          "config": {
+            "type": "condition",
+            "payload": {
+              "type": "jexl",
+              "expression": "${context.variables.amount} > 1000000"
+            }
+          }
+        },
+        {
+          "fromNode": "approval_decision",
+          "toNode": "send_reject_noti",
+          "config": {
+            "type": "condition",
+            "payload": {
+              "type": "jexl",
+              "expression": "${context.variables.outputs.manager_approval.isApproved} == false || ${context.variables.outputs.senior_manager_approval.isApproved} == false || ${context.variables.outputs.ceo_approval.isApproved} == false"
+            }
+          }
+        },
+        {
+          "fromNode": "approval_decision",
+          "toNode": "sent_approve_noti",
+          "config": {
+            "type": "condition",
+            "payload": {
+              "type": "jexl",
+              "expression": "${context.variables.outputs.manager_approval.isApproved} == true || ${context.variables.outputs.senior_manager_approval.isApproved} == true || ${context.variables.outputs.ceo_approval.isApproved} == true"
+            }
+          }
+        },
+        {
+          "fromNode": "sent_approve_noti",
+          "toNode": "process_csv"
+        }
       ]
     }
   ],
@@ -365,6 +687,232 @@
             }
           ]
         }
+      ],
+      "id": "4dfe"
+    },
+    {
+      "id": "c14c",
+      "name": "Standard SLA for Batch Upload Approval 1",
+      "key": "SLA02",
+      "variant": "node",
+      "facts": [
+        {
+          "level": 1,
+          "targetDuration": "1mins",
+          "condition": {
+            "type": "jexl",
+            "expression": "${local.variables.status} == 'pending'"
+          },
+          "actions": [
+            {
+              "name": "Send Reminder Notification",
+              "type": "service",
+              "config": {
+                "type": "http",
+                "method": "POST",
+                "url": "https://41l5r34h-3001.asse.devtunnels.ms/api/notifications",
+                "body": {
+                  "title": "Check your inbox!",
+                  "message": "Please check your inbox for tasks approval."
+                },
+                "headers": "Authorization ${context.variables.access_token}"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "f56c",
+      "name": "Standard SLA for Batch Upload Approval 1",
+      "key": "SLA03",
+      "variant": "node",
+      "facts": [
+        {
+          "level": 1,
+          "targetDuration": "1min",
+          "condition": {
+            "type": "jexl",
+            "expression": "${local.variables.status} == 'pending'"
+          },
+          "actions": [
+            {
+              "name": "Send Reminder Notification",
+              "type": "service",
+              "config": {
+                "type": "http",
+                "method": "POST",
+                "url": "https://41l5r34h-3001.asse.devtunnels.ms/api/notifications",
+                "body": {
+                  "title": "Check your inbox!",
+                  "message": "Please check your inbox for tasks approval."
+                },
+                "headers": "Authorization ${context.variables.access_token}"
+              }
+            }
+          ]
+        },
+        {
+          "level": 2,
+          "targetDuration": "2mins",
+          "condition": {
+            "type": "jexl",
+            "expression": "${local.variables.status} == 'pending'"
+          },
+          "actions": [
+            {
+              "type": "escalate",
+              "config": {
+                "type": "role",
+                "roles": ["ceo"]
+              },
+              "condition": {
+                "type": "jexl",
+                "expression": null
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "f90e",
+      "name": "Standard SLA for Batch Upload Approval 1",
+      "key": "SLA01",
+      "variant": "node",
+      "facts": [
+        {
+          "level": 1,
+          "targetDuration": "1m",
+          "condition": {
+            "type": "jexl",
+            "expression": "${local.variables.status} == 'pending'"
+          },
+          "actions": [
+            {
+              "name": "Send Reminder Notification",
+              "type": "service",
+              "config": {
+                "type": "http",
+                "method": "POST",
+                "url": "https://41l5r34h-3001.asse.devtunnels.ms/api/notifications",
+                "body": {
+                  "title": "Check your inbox!",
+                  "message": "Please check your inbox for tasks approval."
+                },
+                "headers": "Authorization ${context.variables.access_token}"
+              }
+            }
+          ]
+        },
+        {
+          "level": 2,
+          "targetDuration": "2mins",
+          "condition": {
+            "type": "jexl",
+            "expression": "${local.variables.status} == 'pending'"
+          },
+          "actions": [
+            {
+              "type": "escalate",
+              "config": {
+                "type": "role",
+                "roles": ["ceo"]
+              },
+              "condition": {
+                "type": "jexl",
+                "expression": null
+              }
+            }
+          ]
+        },
+        {
+          "level": 3,
+          "targetDuration": "3mins",
+          "condition": {
+            "type": "jexl",
+            "expression": "${local.variables.status} == 'pending'"
+          },
+          "actions": [
+            {
+              "type": "mutation",
+              "config": {
+                "type": "transition",
+                "toNode": "end"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1685",
+      "name": "New SLA",
+      "key": "NEWSLA01",
+      "variant": "node",
+      "facts": [
+        {
+          "level": 1,
+          "targetDuration": "0.3m",
+          "condition": {
+            "type": "jexl",
+            "expression": "${local.variables.status} == 'pending'"
+          },
+          "actions": [
+            {
+              "name": "Send Reminder Notification",
+              "type": "service",
+              "config": {
+                "type": "http",
+                "method": "POST",
+                "url": "https://41l5r34h-3001.asse.devtunnels.ms/api/notifications",
+                "body": {
+                  "title": "Alert!",
+                  "message": "Please check your inbox for tasks approval."
+                },
+                "headers": "Authorization ${context.variables.access_token}"
+              }
+            }
+          ]
+        },
+        {
+          "level": 2,
+          "targetDuration": "0.5m",
+          "condition": {
+            "type": "jexl",
+            "expression": "${local.variables.status} == 'pending'"
+          },
+          "actions": [
+            {
+              "type": "escalate",
+              "config": {
+                "type": "role",
+                "roles": ["ceo"]
+              },
+              "condition": {
+                "type": "jexl",
+                "expression": null
+              }
+            }
+          ]
+        },
+        {
+          "level": 3,
+          "targetDuration": "1m",
+          "condition": {
+            "type": "jexl",
+            "expression": "${local.variables.status} == 'pending'"
+          },
+          "actions": [
+            {
+              "type": "mutation",
+              "config": {
+                "type": "transition",
+                "toNode": "end"
+              }
+            }
+          ]
+        }
       ]
     }
   ],
@@ -390,7 +938,8 @@
       "condition": {
         "type": "jexl",
         "expression": "${context.variables.status} === 'running'"
-      }
+      },
+      "id": "1020"
     },
     {
       "name": "Send Reminder Timer",
@@ -416,6 +965,37 @@
         "type": "duration",
         "value": "24hrs"
       },
+      "condition": {
+        "type": "jexl",
+        "expression": "${context.variables.status} === 'running'"
+      },
+      "id": "7f86"
+    },
+    {
+      "id": "183b",
+      "name": "Auto finish workflow 1",
+      "key": "TIMER01",
+      "variant": "workflow",
+      "timerType": "recurring",
+      "config": {
+        "type": "duration",
+        "value": "24hrs"
+      },
+      "actions": [
+        {
+          "type": "service",
+          "config": {
+            "type": "http",
+            "method": "POST",
+            "url": "https://41l5r34h-3001.asse.devtunnels.ms/api/notifications",
+            "body": {
+              "title": "Check your inbox!",
+              "message": "Please check your inbox for tasks approval."
+            },
+            "headers": "Authorization ${context.variables.access_token}"
+          }
+        }
+      ],
       "condition": {
         "type": "jexl",
         "expression": "${context.variables.status} === 'running'"

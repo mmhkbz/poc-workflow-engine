@@ -12,6 +12,7 @@ import { createRedis } from "./libs/redis";
 import { createHttpWorker } from "./workers/http-worker";
 import { createSlaWorker } from "./workers/sla-worker";
 import { slaRoute } from "./routes/sla.route";
+import { timerRoute } from "./routes/timer.route";
 
 const app = new Hono<Env>();
 app.use(serviceMiddleware);
@@ -27,7 +28,7 @@ app.route("/api/v1/tasks", taskRoute);
 app.route("/api/v1/test", testRoute);
 app.route("/api/v1/roles", roleRoute);
 app.route("/api/v1/slas", slaRoute);
-app.route("/api/v1/timers", slaRoute);
+app.route("/api/v1/timers", timerRoute);
 
 let count = 0;
 

@@ -4,7 +4,7 @@ import { WorkflowInstance } from "../generated/prisma/client";
 import { httpServiceQueue, slaQueue, timerQueue } from "../libs/queue";
 import { evalTemplate } from "../utils/expr.util";
 import jexl from "jexl";
-import { QueueName } from "../configs/consts";
+import { DEFAULT_USER, NodeType, QueueName } from "../configs/consts";
 import { SlaService } from "./sla.service";
 import ms from "ms";
 
@@ -13,6 +13,24 @@ export class WorkflowEngineService {
 
   constructor(private readonly c: Context<Env>) {
     this.slaService = new SlaService(c);
+  }
+
+  private async recordAction(params: {
+    instanceId: string;
+    action: string;
+    performedBy?: string;
+    details?: any;
+  }) {
+    const prisma = this.c.get("prisma");
+    const { instanceId, action, performedBy, details } = params;
+    await prisma.workflowActionHistory.create({
+      data: {
+        workflowInstanceId: instanceId,
+        action,
+        performedBy: performedBy || DEFAULT_USER,
+        details: details ?? {},
+      },
+    });
   }
 
   async startWorkflow(params: {
@@ -38,6 +56,7 @@ export class WorkflowEngineService {
       throw new Error("Start node not found");
     }
 
+    const createdBy = params.createdBy || "system";
     const workflowInstance = await prisma.workflowInstance.create({
       data: {
         workflowId: workflowDefinition.key,
@@ -45,12 +64,10 @@ export class WorkflowEngineService {
         variables: { ...params.context, refId: params.refId },
         status: "running",
         defSnapshot: workflowDefinition,
-        createdBy: params.createdBy,
+        createdBy,
         refId: params.refId,
       },
     });
-
-    console.log("workflow instnace", workflowInstance.id);
 
     await this.handleNode(
       workflowInstance.id,
@@ -76,6 +93,19 @@ export class WorkflowEngineService {
     const node = workflowDefinition.nodes.find((n: any) => n.key === nodeKey);
     if (!node) {
       throw new Error(`Node with key ${nodeKey} not found`);
+    }
+
+    const noRecords: NodeType[] = [
+      NodeType.DECISION,
+      NodeType.PARALLEL_GATEWAY,
+      NodeType.PARALLEL_JOIN,
+    ];
+    if (!noRecords.includes(node.type)) {
+      await this.recordAction({
+        instanceId,
+        action: `${node.key}`,
+        details: { node, branchKey },
+      });
     }
 
     switch (node.type) {
@@ -377,7 +407,7 @@ export class WorkflowEngineService {
     return null;
   }
 
-  async completeTask(taskId: string, data: any) {
+  async completeTask(taskId: string, data: any, performedBy?: string) {
     const prisma = this.c.get("prisma");
     const task = await prisma.task.update({
       where: { id: taskId },
@@ -428,6 +458,26 @@ export class WorkflowEngineService {
                 [task.nodeKey]: data,
               },
             };
+            const savedActionHistory =
+              await prisma.workflowActionHistory.findFirst({
+                where: {
+                  workflowInstanceId: task.instanceId,
+                  action: node.key,
+                },
+              });
+            if (savedActionHistory) {
+              await prisma.workflowActionHistory.update({
+                where: {
+                  id: savedActionHistory.id,
+                },
+                data: {
+                  details: {
+                    ...(savedActionHistory.details as any),
+                    outputs: data,
+                  },
+                },
+              });
+            }
             await prisma.workflowInstance.update({
               where: { id: task.instanceId },
               data: { variables: newVariables, currentNode: nextNode.key },

@@ -19,6 +19,8 @@ export enum NodeType {
   SERVICE = "service",
   DECISION = "decision",
   END = "end",
+  PARALLEL_GATEWAY = "parallel_gateway",
+  PARALLEL_JOIN = "parallel_join",
 }
 
 export enum NodeConfigType {

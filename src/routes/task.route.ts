@@ -29,6 +29,7 @@ taskRoute.get("/", async (c) => {
 taskRoute.post("/:taskId/complete", async (c) => {
   const taskId = c.req.param("taskId");
   const { instanceId, isApproved = false, remark = "-" } = await c.req.json();
+  const performedBy = c.req.header("x-user-id") || "unknown";
 
   const prisma = c.get("prisma");
 
@@ -54,7 +55,7 @@ taskRoute.post("/:taskId/complete", async (c) => {
 
   await c
     .get("workflowEngineService")
-    .completeTask(taskId, { isApproved, remark });
+    .completeTask(taskId, { isApproved, remark }, performedBy);
 
   return c.json(
     dataResponse(

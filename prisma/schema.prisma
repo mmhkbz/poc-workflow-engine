@@ -1,3 +1,4 @@
+
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
@@ -21,15 +22,30 @@ model WorkflowInstance {
   defSnapshot      Json
   currentNode      String?
   refId            String?
-  createdBy        String?
+  createdBy        String?                @default("system")
   updatedBy        String?
   createdAt        DateTime               @default(now())
   updatedAt        DateTime               @updatedAt
   tasks            Task[]
   parallelBranches ParallelBranchInstance[]
+  actionHistories        WorkflowActionHistory[]
 
   @@index([workflowId])
+  @@index([createdBy])
   @@map("workflow_instances")
+}
+
+model WorkflowActionHistory {
+  id               String   @id @default(cuid())
+  workflowInstanceId String
+  action           String
+  performedBy      String?
+  details          Json?
+  createdAt        DateTime @default(now())
+  workflowInstance WorkflowInstance @relation(fields: [workflowInstanceId], references: [id])
+
+  @@index([workflowInstanceId, action])
+  @@map("workflow_action_histories")
 }
 
 model Task {

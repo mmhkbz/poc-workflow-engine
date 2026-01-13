@@ -538,6 +538,10 @@
           "key": "target_decision",
           "type": "decision",
           "description": "Target Decision"
+        },
+        {
+          "key": "end",
+          "type": "end"
         }
       ],
       "transitions": [
@@ -615,6 +619,10 @@
         {
           "fromNode": "sent_approve_noti",
           "toNode": "process_csv"
+        },
+        {
+          "fromNode": "process_csv",
+          "toNode": "end"
         }
       ]
     }

@@ -11,6 +11,16 @@
       "name": "Senior Manager"
     },
     {
+      "id": "deputy_manager",
+      "key": "deputy_manager",
+      "name": "Deputy Manager"
+    },
+    {
+      "id": "deputy_ceo",
+      "key": "deputy_ceo",
+      "name": "Deputy CEO"
+    },
+    {
       "id": "ceo",
       "key": "ceo",
       "name": "CEO"
@@ -74,7 +84,78 @@
               "roles": ["manager"],
               "groups": ["operation"]
             },
-            "slas": ["SLA01"],
+            "slas": [
+              {
+                "name": "Standard SLA for Batch Upload Approval.",
+                "key": "SLA01",
+                "variant": "node",
+                "facts": [
+                  {
+                    "level": 1,
+                    "targetDuration": "0.3m",
+                    "condition": {
+                      "type": "jexl",
+                      "expression": "${local.variables.status} == 'pending'"
+                    },
+                    "actions": [
+                      {
+                        "name": "Send Reminder Noti",
+                        "type": "service",
+                        "config": {
+                          "type": "http",
+                          "method": "POST",
+                          "url": "https://41l5r34h-3001.asse.devtunnels.ms/api/notifications",
+                          "body": {
+                            "title": "Check your inbox!",
+                            "message": "Please check your inbox for tasks approval."
+                          },
+                          "headers": "Authorization ${context.variables.access_token}"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "level": 2,
+                    "targetDuration": "0.5m",
+                    "condition": {
+                      "type": "jexl",
+                      "expression": "${local.variables.status} == 'pending'"
+                    },
+                    "actions": [
+                      {
+                        "type": "escalate",
+                        "config": {
+                          "type": "role",
+                          "roles": ["ceo"]
+                        },
+                        "condition": {
+                          "type": "jexl",
+                          "expression": null
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "level": 3,
+                    "targetDuration": "1m",
+                    "condition": {
+                      "type": "jexl",
+                      "expression": "${local.variables.status} == 'pending'"
+                    },
+                    "actions": [
+                      {
+                        "type": "mutation",
+                        "config": {
+                          "type": "transition",
+                          "toNode": "end"
+                        }
+                      }
+                    ]
+                  }
+                ],
+                "id": "4dfe"
+              }
+            ],
             "timers": []
           }
         },
@@ -123,7 +204,78 @@
               "roles": ["senior_manager"],
               "groups": ["security"]
             },
-            "slas": ["SLA01"],
+            "slas": [
+              {
+                "name": "Standard SLA for Batch Upload Approval.",
+                "key": "SLA01",
+                "variant": "node",
+                "facts": [
+                  {
+                    "level": 1,
+                    "targetDuration": "0.1m",
+                    "condition": {
+                      "type": "jexl",
+                      "expression": "${local.variables.status} == 'pending'"
+                    },
+                    "actions": [
+                      {
+                        "name": "Send Reminder Noti",
+                        "type": "service",
+                        "config": {
+                          "type": "http",
+                          "method": "POST",
+                          "url": "https://41l5r34h-3001.asse.devtunnels.ms/api/notifications",
+                          "body": {
+                            "title": "Check your inbox!",
+                            "message": "Please check your inbox for tasks approval."
+                          },
+                          "headers": "Authorization ${context.variables.access_token}"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "level": 2,
+                    "targetDuration": "0.3m",
+                    "condition": {
+                      "type": "jexl",
+                      "expression": "${local.variables.status} == 'pending'"
+                    },
+                    "actions": [
+                      {
+                        "type": "escalate",
+                        "config": {
+                          "type": "role",
+                          "roles": ["ceo"]
+                        },
+                        "condition": {
+                          "type": "jexl",
+                          "expression": null
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "level": 3,
+                    "targetDuration": "0.5m",
+                    "condition": {
+                      "type": "jexl",
+                      "expression": "${local.variables.status} == 'pending'"
+                    },
+                    "actions": [
+                      {
+                        "type": "mutation",
+                        "config": {
+                          "type": "transition",
+                          "toNode": "end"
+                        }
+                      }
+                    ]
+                  }
+                ],
+                "id": "4dfe"
+              }
+            ],
             "timers": []
           }
         },
@@ -318,7 +470,7 @@
               "roles": ["manager"],
               "groups": ["operation"]
             },
-            "slas": ["SLA02"],
+            "slas": [],
             "timers": []
           }
         },
@@ -627,303 +779,7 @@
       ]
     }
   ],
-  "slaDefinitions": [
-    {
-      "name": "Standard SLA for Batch Upload Approval.",
-      "key": "SLA01",
-      "variant": "node",
-      "facts": [
-        {
-          "level": 1,
-          "targetDuration": "0.3m",
-          "condition": {
-            "type": "jexl",
-            "expression": "${local.variables.status} == 'pending'"
-          },
-          "actions": [
-            {
-              "name": "Send Reminder Noti",
-              "type": "service",
-              "config": {
-                "type": "http",
-                "method": "POST",
-                "url": "https://41l5r34h-3001.asse.devtunnels.ms/api/notifications",
-                "body": {
-                  "title": "Check your inbox!",
-                  "message": "Please check your inbox for tasks approval."
-                },
-                "headers": "Authorization ${context.variables.access_token}"
-              }
-            }
-          ]
-        },
-        {
-          "level": 2,
-          "targetDuration": "0.5m",
-          "condition": {
-            "type": "jexl",
-            "expression": "${local.variables.status} == 'pending'"
-          },
-          "actions": [
-            {
-              "type": "escalate",
-              "config": {
-                "type": "role",
-                "roles": ["ceo"]
-              },
-              "condition": {
-                "type": "jexl",
-                "expression": null
-              }
-            }
-          ]
-        },
-        {
-          "level": 3,
-          "targetDuration": "1m",
-          "condition": {
-            "type": "jexl",
-            "expression": "${local.variables.status} == 'pending'"
-          },
-          "actions": [
-            {
-              "type": "mutation",
-              "config": {
-                "type": "transition",
-                "toNode": "end"
-              }
-            }
-          ]
-        }
-      ],
-      "id": "4dfe"
-    },
-    {
-      "id": "c14c",
-      "name": "Standard SLA for Batch Upload Approval 1",
-      "key": "SLA02",
-      "variant": "node",
-      "facts": [
-        {
-          "level": 1,
-          "targetDuration": "1mins",
-          "condition": {
-            "type": "jexl",
-            "expression": "${local.variables.status} == 'pending'"
-          },
-          "actions": [
-            {
-              "name": "Send Reminder Notification",
-              "type": "service",
-              "config": {
-                "type": "http",
-                "method": "POST",
-                "url": "https://41l5r34h-3001.asse.devtunnels.ms/api/notifications",
-                "body": {
-                  "title": "Check your inbox!",
-                  "message": "Please check your inbox for tasks approval."
-                },
-                "headers": "Authorization ${context.variables.access_token}"
-              }
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "id": "f56c",
-      "name": "Standard SLA for Batch Upload Approval 1",
-      "key": "SLA03",
-      "variant": "node",
-      "facts": [
-        {
-          "level": 1,
-          "targetDuration": "1min",
-          "condition": {
-            "type": "jexl",
-            "expression": "${local.variables.status} == 'pending'"
-          },
-          "actions": [
-            {
-              "name": "Send Reminder Notification",
-              "type": "service",
-              "config": {
-                "type": "http",
-                "method": "POST",
-                "url": "https://41l5r34h-3001.asse.devtunnels.ms/api/notifications",
-                "body": {
-                  "title": "Check your inbox!",
-                  "message": "Please check your inbox for tasks approval."
-                },
-                "headers": "Authorization ${context.variables.access_token}"
-              }
-            }
-          ]
-        },
-        {
-          "level": 2,
-          "targetDuration": "2mins",
-          "condition": {
-            "type": "jexl",
-            "expression": "${local.variables.status} == 'pending'"
-          },
-          "actions": [
-            {
-              "type": "escalate",
-              "config": {
-                "type": "role",
-                "roles": ["ceo"]
-              },
-              "condition": {
-                "type": "jexl",
-                "expression": null
-              }
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "id": "f90e",
-      "name": "Standard SLA for Batch Upload Approval 1",
-      "key": "SLA01",
-      "variant": "node",
-      "facts": [
-        {
-          "level": 1,
-          "targetDuration": "1m",
-          "condition": {
-            "type": "jexl",
-            "expression": "${local.variables.status} == 'pending'"
-          },
-          "actions": [
-            {
-              "name": "Send Reminder Notification",
-              "type": "service",
-              "config": {
-                "type": "http",
-                "method": "POST",
-                "url": "https://41l5r34h-3001.asse.devtunnels.ms/api/notifications",
-                "body": {
-                  "title": "Check your inbox!",
-                  "message": "Please check your inbox for tasks approval."
-                },
-                "headers": "Authorization ${context.variables.access_token}"
-              }
-            }
-          ]
-        },
-        {
-          "level": 2,
-          "targetDuration": "2mins",
-          "condition": {
-            "type": "jexl",
-            "expression": "${local.variables.status} == 'pending'"
-          },
-          "actions": [
-            {
-              "type": "escalate",
-              "config": {
-                "type": "role",
-                "roles": ["ceo"]
-              },
-              "condition": {
-                "type": "jexl",
-                "expression": null
-              }
-            }
-          ]
-        },
-        {
-          "level": 3,
-          "targetDuration": "3mins",
-          "condition": {
-            "type": "jexl",
-            "expression": "${local.variables.status} == 'pending'"
-          },
-          "actions": [
-            {
-              "type": "mutation",
-              "config": {
-                "type": "transition",
-                "toNode": "end"
-              }
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "id": "1685",
-      "name": "New SLA",
-      "key": "NEWSLA01",
-      "variant": "node",
-      "facts": [
-        {
-          "level": 1,
-          "targetDuration": "0.3m",
-          "condition": {
-            "type": "jexl",
-            "expression": "${local.variables.status} == 'pending'"
-          },
-          "actions": [
-            {
-              "name": "Send Reminder Notification",
-              "type": "service",
-              "config": {
-                "type": "http",
-                "method": "POST",
-                "url": "https://41l5r34h-3001.asse.devtunnels.ms/api/notifications",
-                "body": {
-                  "title": "Alert!",
-                  "message": "Please check your inbox for tasks approval."
-                },
-                "headers": "Authorization ${context.variables.access_token}"
-              }
-            }
-          ]
-        },
-        {
-          "level": 2,
-          "targetDuration": "0.5m",
-          "condition": {
-            "type": "jexl",
-            "expression": "${local.variables.status} == 'pending'"
-          },
-          "actions": [
-            {
-              "type": "escalate",
-              "config": {
-                "type": "role",
-                "roles": ["ceo"]
-              },
-              "condition": {
-                "type": "jexl",
-                "expression": null
-              }
-            }
-          ]
-        },
-        {
-          "level": 3,
-          "targetDuration": "1m",
-          "condition": {
-            "type": "jexl",
-            "expression": "${local.variables.status} == 'pending'"
-          },
-          "actions": [
-            {
-              "type": "mutation",
-              "config": {
-                "type": "transition",
-                "toNode": "end"
-              }
-            }
-          ]
-        }
-      ]
-    }
-  ],
+  "slaDefinitions": [],
   "timerDefinitions": [
     {
       "name": "Auto finish workflow",

@@ -4,7 +4,11 @@ import { PrismaClient, WorkflowInstance } from "../../generated/prisma/client";
 import { httpServiceQueue, slaQueue, timerQueue } from "../../libs/queue";
 import { evalTemplate } from "../../utils/expr.util";
 import jexl from "jexl";
-import { QueueName } from "../../configs/consts";
+import {
+  ActionHistoryStatus,
+  DEFAULT_USER,
+  QueueName,
+} from "../../configs/consts";
 import ms from "ms";
 import { SlaService } from "./sla.service";
 import { createWorkflowMasterApiClient } from "../../libs/axios";
@@ -20,6 +24,27 @@ export class WorkflowEngineService {
     );
     this.slaService = new SlaService(apiClient);
     this.workflowMasterService = new WorkflowMasterService(apiClient);
+  }
+
+  private async recordAction(params: {
+    instanceId: string;
+    action: string;
+    performedBy?: string;
+    details?: any;
+    completedAt?: Date | undefined;
+    status?: string;
+  }) {
+    const { instanceId, action, performedBy, details } = params;
+    return await this.prisma.workflowActionHistory.create({
+      data: {
+        workflowInstanceId: instanceId,
+        action,
+        performedBy: performedBy || DEFAULT_USER,
+        details: details ?? {},
+        completedAt: params.completedAt,
+        status: params.status || ActionHistoryStatus.PENDING,
+      },
+    });
   }
 
   async startWorkflow(params: {
@@ -69,7 +94,8 @@ export class WorkflowEngineService {
   async handleNode(
     instanceId: string,
     nodeKey: string,
-    workflowDefinition: any
+    workflowDefinition: any,
+    branchKey?: string
   ) {
     const prisma = this.prisma;
     await prisma.workflowInstance.update({
@@ -78,34 +104,109 @@ export class WorkflowEngineService {
     });
 
     const node = workflowDefinition.nodes.find((n: any) => n.key === nodeKey);
-    console.log("node ", node);
     if (!node) {
       throw new Error(`Node with key ${nodeKey} not found`);
     }
 
+    let actionId: string | undefined = undefined;
+
     switch (node.type) {
       case "start":
+        const startRecord = await this.recordAction({
+          instanceId,
+          action: node.key,
+          details: { node, branchKey },
+          completedAt: new Date(),
+          status: ActionHistoryStatus.COMPLETED,
+        });
+        actionId = startRecord.id;
         const nextNode = this.findNextNode(nodeKey, workflowDefinition);
         if (nextNode) {
-          await this.handleNode(instanceId, nextNode.key, workflowDefinition);
+          await this.handleNode(
+            instanceId,
+            nextNode.key,
+            workflowDefinition,
+            branchKey
+          );
         }
         break;
       case "parallel_gateway":
         await this.handleParallelGateway(instanceId, node, workflowDefinition);
+        const parallelGatewayRecord = await this.recordAction({
+          instanceId,
+          action: node.key,
+          details: { node, branchKey },
+          completedAt: new Date(),
+          status: ActionHistoryStatus.COMPLETED,
+        });
+        actionId = parallelGatewayRecord.id;
         break;
       case "task":
         await this.handleTaskNode(instanceId, node, workflowDefinition);
+        const taskRecord = await this.recordAction({
+          instanceId,
+          action: node.key,
+          details: { node, branchKey },
+          status: ActionHistoryStatus.PENDING,
+        });
+        actionId = taskRecord.id;
         break;
       case "service":
-        await this.handleServiceNode(instanceId, node, workflowDefinition);
+        const serviceRecord = await this.recordAction({
+          instanceId,
+          action: node.key,
+          details: { node, branchKey },
+          status: ActionHistoryStatus.PROCESSING,
+        });
+        actionId = serviceRecord.id;
+        await this.handleServiceNode(
+          instanceId,
+          node,
+          workflowDefinition,
+          branchKey,
+          actionId
+        );
         break;
       case "decision":
-        await this.handleDecisionNode(instanceId, node, workflowDefinition);
+        await this.handleDecisionNode(
+          instanceId,
+          node,
+          workflowDefinition,
+          branchKey
+        );
+        const decisionRecord = await this.recordAction({
+          instanceId,
+          action: node.key,
+          details: { node, branchKey },
+          completedAt: new Date(),
+          status: ActionHistoryStatus.COMPLETED,
+        });
+        actionId = decisionRecord.id;
         break;
       case "parallel_join":
-        await this.handleParallelJoin(instanceId, node, workflowDefinition);
+        await this.handleParallelJoin(
+          instanceId,
+          node,
+          workflowDefinition,
+          branchKey
+        );
+        const parallelJoin = await this.recordAction({
+          instanceId,
+          action: node.key,
+          details: { node, branchKey },
+          status: ActionHistoryStatus.COMPLETED,
+        });
+        actionId = parallelJoin.id;
         break;
       case "end":
+        const endRecord = await this.recordAction({
+          instanceId,
+          action: node.key,
+          details: { node, branchKey },
+          completedAt: new Date(),
+          status: ActionHistoryStatus.COMPLETED,
+        });
+        actionId = endRecord.id;
         await this.handleEndNode(instanceId);
         break;
       default:
@@ -165,16 +266,17 @@ export class WorkflowEngineService {
     });
 
     if (node.config.slas) {
-      for (const slaKey of node.config.slas) {
-        const slaDef = await this.slaService.getSlaByKey(slaKey);
+      for (const sla of node.config.slas) {
+        const slaDef = sla;
         if (slaDef) {
           for (const fact of slaDef.facts) {
             console.log("fact ", fact);
             const slaInstance = await prisma.slaInstance.create({
               data: {
                 taskId: task.id,
-                slaKey: slaKey,
+                slaKey: slaDef.key,
                 status: "active",
+                slaDef,
               },
             });
             await slaQueue.add(
@@ -197,7 +299,9 @@ export class WorkflowEngineService {
   async handleServiceNode(
     instanceId: string,
     node: any,
-    workflowDefinition: any
+    workflowDefinition: any,
+    branchKey?: string,
+    actionHistoryId?: string
   ) {
     const prisma = this.prisma;
     const instance = await prisma.workflowInstance.findUnique({
@@ -205,27 +309,33 @@ export class WorkflowEngineService {
     });
     const { payload } = node.config;
     if (payload.type === "http") {
-      console.log("payload ", payload);
-      await httpServiceQueue.add(
-        QueueName.HTTP_SERVICE_QUEUE,
-        payload
-          ? await evalTemplate(payload, {
-              context: { variables: instance?.variables },
-            })
-          : {}
-      );
+      const parsedPayload = payload
+        ? await evalTemplate(payload, {
+            context: { variables: instance?.variables },
+          })
+        : {};
+      await httpServiceQueue.add(QueueName.HTTP_SERVICE_QUEUE, {
+        ...parsedPayload,
+        actionId: actionHistoryId,
+      });
     }
 
     const nextNode = this.findNextNode(node.key, workflowDefinition);
     if (nextNode) {
-      await this.handleNode(instanceId, nextNode.key, workflowDefinition);
+      await this.handleNode(
+        instanceId,
+        nextNode.key,
+        workflowDefinition,
+        branchKey
+      );
     }
   }
 
   async handleDecisionNode(
     instanceId: string,
     node: any,
-    workflowDefinition: any
+    workflowDefinition: any,
+    branchKey?: string
   ) {
     const prisma = this.prisma;
     const instance = await prisma.workflowInstance.findUnique({
@@ -260,7 +370,8 @@ export class WorkflowEngineService {
   async handleParallelJoin(
     instanceId: string,
     node: any,
-    workflowDefinition: any
+    workflowDefinition: any,
+    branchKey?: string
   ) {
     const prisma = this.prisma;
     const { dependencies, condition } = node.config;
@@ -333,8 +444,6 @@ export class WorkflowEngineService {
     if (node.type === "task") {
       const nextNode = this.findNextNode(task.nodeKey, workflowDefinition);
       if (nextNode) {
-        console.log("next node", nextNode);
-        console.log("Handling next node after task completion:", nextNode.key);
         if (nextNode.type === "decision") {
           const instance = await prisma.workflowInstance.findUnique({
             where: { id: task.instanceId },

@@ -1,6 +1,6 @@
 import { Worker } from "bullmq";
 import Redis from "ioredis";
-import { QueueName } from "../configs/consts";
+import { ActionHistoryStatus, QueueName } from "../configs/consts";
 import { PrismaClient } from "../generated/prisma";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { createWorkflowMasterApiClient } from "../libs/axios";
@@ -42,8 +42,32 @@ export const createSlaWorker = (params: CreateSlaWorkerParams) => {
 
       if (slaInstance && slaInstance.task.status !== "completed") {
         const slaService = new SlaService(workflowMasterApi);
-        const slaDef = await slaService.getSlaByKey(slaInstance.slaKey);
-        const fact = slaDef.facts.find((f: any) => f.level === level);
+        const slaDef = slaInstance.slaDef || ({} as any);
+        const fact = slaDef?.facts?.find((f: any) => f.level === level);
+
+        const savedActionHistory = await prisma.workflowActionHistory.findFirst(
+          {
+            where: {
+              workflowInstanceId: slaInstance.task.instanceId,
+              action: slaInstance.task.nodeKey,
+            },
+          }
+        );
+        if (savedActionHistory) {
+          await prisma.workflowActionHistory.update({
+            where: {
+              id: savedActionHistory.id,
+            },
+            data: {
+              details: {
+                ...(savedActionHistory.details as any),
+                outputs: fact.actions,
+              },
+              completedAt: new Date(),
+              status: ActionHistoryStatus.SLA_BREACHED,
+            },
+          });
+        }
 
         if (fact) {
           await prisma.slaInstance.update({
@@ -111,13 +135,13 @@ export const createSlaWorker = (params: CreateSlaWorkerParams) => {
                       data: { status: "failed" }, // TODO: to fix
                     });
                     const instance = await prisma.workflowInstance.findUnique({
-                      where: { id: task.instanceId },
+                      where: { id: slaInstance.task.instanceId },
                     });
                     const workflowDefinition =
                       instance?.defSnapshot || ({} as any);
                     if (instance) {
                       await workflowEngine.handleNode(
-                        task.instanceId,
+                        slaInstance.task.instanceId,
                         action.config.toNode,
                         workflowDefinition
                       );
@@ -132,6 +156,10 @@ export const createSlaWorker = (params: CreateSlaWorkerParams) => {
       if (slaInstance?.task.status === "completed") {
         await prisma.slaInstance.update({
           where: { id: slaInstanceId },
+          data: { status: "completed" },
+        });
+        await prisma.task.update({
+          where: { id: slaInstance.task.id },
           data: { status: "completed" },
         });
       }

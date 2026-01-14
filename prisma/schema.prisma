@@ -41,6 +41,7 @@ model WorkflowActionHistory {
   action           String
   performedBy      String?
   details          Json?
+  status           String?  @default("pending")
   createdAt        DateTime @default(now())
   completedAt      DateTime?
   workflowInstance WorkflowInstance @relation(fields: [workflowInstanceId], references: [id])
@@ -92,6 +93,7 @@ model SlaInstance {
   taskId     String
   task       Task      @relation(fields: [taskId], references: [id])
   slaKey     String
+  slaDef     Json?
   status     SlaStatus
   breachedAt DateTime?
   createdAt  DateTime  @default(now())

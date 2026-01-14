@@ -52,3 +52,11 @@ export enum QueueName {
   NOTIFICATION_QUEUE = "notification-queue",
   TIMER_QUEUE = "timer-queue",
 }
+
+export enum ActionHistoryStatus {
+  PENDING = "pending",
+  COMPLETED = "completed",
+  FAILED = "failed",
+  SLA_BREACHED = "sla-breached",
+  PROCESSING = "processing",
+}

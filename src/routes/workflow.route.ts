@@ -8,6 +8,7 @@ export const workflowRoute = new Hono<Env>();
 // Get workflow instances by createdBy
 workflowRoute.get("/instances", async (c) => {
   const createdBy = c.req.query("createdBy") || DEFAULT_USER;
+  console.log("createdby", createdBy);
   const status = c.req.query("status");
   const prisma = c.get("prisma");
   const instances = await prisma.workflowInstance.findMany({
@@ -40,12 +41,10 @@ workflowRoute.post("/start", async (c) => {
   const body = await c.req.json();
   const userId = c.req.header("x-user-id") || DEFAULT_USER;
 
-  console.log(body);
-
   const savedInstance = await c.get("workflowEngineService").startWorkflow({
     key: body.workflowId || DEFAULT_WORKFLOW,
     context: body.context || {},
-    createdBy: userId,
+    createdBy: body?.createdBy || userId,
     refId: body.refId || "",
   });
 
@@ -84,12 +83,16 @@ workflowRoute.get("/instances/:instanceId", async (c) => {
       actionHistories: {
         select: {
           id: true,
+          status: true,
           workflowInstanceId: true,
           action: true,
           performedBy: true,
           details: true,
           completedAt: true,
           createdAt: true,
+        },
+        orderBy: {
+          createdAt: "asc",
         },
       },
     },

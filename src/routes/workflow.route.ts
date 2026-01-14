@@ -73,3 +73,26 @@ workflowRoute.get("/instances/:instanceId/history", async (c) => {
   });
   return c.json(dataResponse(history));
 });
+
+workflowRoute.get("/instances/:instanceId", async (c) => {
+  const instanceId = c.req.param("instanceId");
+  const prisma = c.get("prisma");
+  const instance = await prisma.workflowInstance.findUnique({
+    where: { id: instanceId },
+    include: {
+      parallelBranches: true,
+      actionHistories: {
+        select: {
+          id: true,
+          workflowInstanceId: true,
+          action: true,
+          performedBy: true,
+          details: true,
+          completedAt: true,
+          createdAt: true,
+        },
+      },
+    },
+  });
+  return c.json(dataResponse(instance));
+});

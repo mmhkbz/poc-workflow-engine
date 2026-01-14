@@ -20,15 +20,17 @@ export class WorkflowEngineService {
     action: string;
     performedBy?: string;
     details?: any;
+    completedAt?: Date | undefined;
   }) {
     const prisma = this.c.get("prisma");
     const { instanceId, action, performedBy, details } = params;
-    await prisma.workflowActionHistory.create({
+    return await prisma.workflowActionHistory.create({
       data: {
         workflowInstanceId: instanceId,
         action,
         performedBy: performedBy || DEFAULT_USER,
         details: details ?? {},
+        completedAt: params.completedAt,
       },
     });
   }
@@ -100,12 +102,22 @@ export class WorkflowEngineService {
       NodeType.PARALLEL_GATEWAY,
       NodeType.PARALLEL_JOIN,
     ];
+    let actionId: string | undefined = undefined;
     if (!noRecords.includes(node.type)) {
-      await this.recordAction({
+      const autoCompleteNodes: NodeType[] = [
+        NodeType.START,
+        NodeType.PARALLEL_GATEWAY,
+        NodeType.END,
+      ];
+      const res = await this.recordAction({
         instanceId,
         action: `${node.key}`,
         details: { node, branchKey },
+        completedAt: autoCompleteNodes.includes(node.type)
+          ? new Date()
+          : undefined,
       });
+      actionId = res.id;
     }
 
     switch (node.type) {
@@ -131,7 +143,8 @@ export class WorkflowEngineService {
           instanceId,
           node,
           workflowDefinition,
-          branchKey
+          branchKey,
+          actionId
         );
         break;
       case "decision":
@@ -245,7 +258,8 @@ export class WorkflowEngineService {
     instanceId: string,
     node: any,
     workflowDefinition: any,
-    branchKey?: string
+    branchKey?: string,
+    actionHistoryId?: string
   ) {
     const prisma = this.c.get("prisma");
     const instance = await prisma.workflowInstance.findUnique({
@@ -253,14 +267,15 @@ export class WorkflowEngineService {
     });
     const { payload } = node.config;
     if (payload.type === "http") {
-      await httpServiceQueue.add(
-        QueueName.HTTP_SERVICE_QUEUE,
-        payload
-          ? await evalTemplate(payload, {
-              context: { variables: instance?.variables },
-            })
-          : {}
-      );
+      const parsedPayload = payload
+        ? await evalTemplate(payload, {
+            context: { variables: instance?.variables },
+          })
+        : {};
+      await httpServiceQueue.add(QueueName.HTTP_SERVICE_QUEUE, {
+        ...parsedPayload,
+        actionId: actionHistoryId,
+      });
     }
 
     const nextNode = this.findNextNode(node.key, workflowDefinition);
@@ -475,6 +490,7 @@ export class WorkflowEngineService {
                     ...(savedActionHistory.details as any),
                     outputs: data,
                   },
+                  completedAt: new Date(),
                 },
               });
             }

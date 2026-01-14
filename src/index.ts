@@ -56,7 +56,7 @@ let count = 0;
 serve(
   {
     fetch: app.fetch,
-    port: 3000,
+    port: 3002,
   },
   async (info) => {
     const redisHost = process.env.REDIS_HOST || "";

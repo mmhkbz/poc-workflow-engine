@@ -42,6 +42,7 @@ model WorkflowActionHistory {
   performedBy      String?
   details          Json?
   createdAt        DateTime @default(now())
+  completedAt      DateTime?
   workflowInstance WorkflowInstance @relation(fields: [workflowInstanceId], references: [id])
 
   @@index([workflowInstanceId, action])

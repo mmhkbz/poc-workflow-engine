@@ -442,6 +442,28 @@ export class WorkflowEngineService {
       (n: any) => n.key === task.nodeKey
     );
     if (node.type === "task") {
+      const workflowActionHistory =
+        await prisma.workflowActionHistory.findFirst({
+          where: {
+            workflowInstanceId: task.instanceId,
+            action: node.key,
+          },
+        });
+      if (workflowActionHistory) {
+        await prisma.workflowActionHistory.update({
+          where: {
+            id: workflowActionHistory.id,
+          },
+          data: {
+            details: {
+              ...(workflowActionHistory.details as any),
+              outputs: data,
+            },
+            status: ActionHistoryStatus.COMPLETED,
+            completedAt: new Date(),
+          },
+        });
+      }
       const nextNode = this.findNextNode(task.nodeKey, workflowDefinition);
       if (nextNode) {
         if (nextNode.type === "decision") {

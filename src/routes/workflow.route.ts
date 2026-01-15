@@ -7,7 +7,7 @@ export const workflowRoute = new Hono<Env>();
 
 // Get workflow instances by createdBy
 workflowRoute.get("/instances", async (c) => {
-  const createdBy = c.req.query("createdBy") || DEFAULT_USER;
+  const createdBy = c.req.query("createdBy") || undefined;
   console.log("createdby", createdBy);
   const status = c.req.query("status");
   const prisma = c.get("prisma");

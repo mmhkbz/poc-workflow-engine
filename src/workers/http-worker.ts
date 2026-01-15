@@ -20,6 +20,7 @@ export const createHttpWorker = (params: CreateHttpWorkerParams) => {
     async (job) => {
       const { url, method, headers, body, actionId } = job.data;
       try {
+        console.log(job.data);
         const res = await axios.request({
           method,
           url,

@@ -357,7 +357,10 @@ export class WorkflowEngineService {
       console.log("Evaluating condition:", condition);
       if (condition) {
         const context = { context: { variables: instance.variables } };
+
         const expression = await evalTemplate(condition.expression, context);
+        console.log(JSON.stringify(context, null, 2));
+        console.log("expression", expression);
         const result = await jexl.eval(expression, context);
         console.log("result", result);
         if (result) {
@@ -501,6 +504,28 @@ export class WorkflowEngineService {
       (n: any) => n.key === task.nodeKey
     );
     if (node.type === "task") {
+      const workflowActionHistory =
+        await prisma.workflowActionHistory.findFirst({
+          where: {
+            workflowInstanceId: task.instanceId,
+            action: node.key,
+          },
+        });
+      if (workflowActionHistory) {
+        await prisma.workflowActionHistory.update({
+          where: {
+            id: workflowActionHistory.id,
+          },
+          data: {
+            details: {
+              ...(workflowActionHistory.details as any),
+              outputs: data,
+            },
+            status: ActionHistoryStatus.COMPLETED,
+            completedAt: new Date(),
+          },
+        });
+      }
       const nextNode = this.findNextNode(task.nodeKey, workflowDefinition);
       if (nextNode) {
         if (nextNode.type === "decision") {

@@ -63,7 +63,6 @@ export const createSlaWorker = (params: CreateSlaWorkerParams) => {
             data: {
               details: {
                 ...(savedActionHistory.details as any),
-                outputs: fact.actions,
               },
               completedAt: new Date(),
               status: ActionHistoryStatus.SLA_BREACHED,

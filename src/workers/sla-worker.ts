@@ -43,7 +43,9 @@ export const createSlaWorker = (params: CreateSlaWorkerParams) => {
       if (slaInstance && slaInstance.task.status !== "completed") {
         const slaService = new SlaService(workflowMasterApi);
         const slaDef = slaInstance.slaDef || ({} as any);
-        const fact = slaDef?.facts?.find((f: any) => f.level === level);
+        const fact = (slaDef?.facts || slaDef?.levels || [])?.find(
+          (f: any) => f.level === level
+        );
 
         const savedActionHistory = await prisma.workflowActionHistory.findFirst(
           {

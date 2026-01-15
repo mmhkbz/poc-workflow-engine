@@ -89,7 +89,7 @@
                 "name": "Standard SLA for Batch Upload Approval.",
                 "key": "SLA01",
                 "variant": "node",
-                "facts": [
+                "levels": [
                   {
                     "level": 1,
                     "targetDuration": "0.3m",
@@ -775,6 +775,178 @@
         {
           "fromNode": "process_csv",
           "toNode": "end"
+        }
+      ]
+    },
+    {
+      "id": "32d9",
+      "key": "MANAGER_APPROVAL_WORKFLOW_01",
+      "name": "MANAGER_APPROVAL_WORKFLOW_01",
+      "nodes": [
+        {
+          "key": "start",
+          "type": "start",
+          "description": "Start"
+        },
+        {
+          "key": "manager_approval",
+          "type": "task",
+          "description": "Manager Approval",
+          "config": {
+            "type": "assignment",
+            "payload": {
+              "roles": ["manager"],
+              "groups": []
+            },
+            "slas": [
+              {
+                "name": "SLA for Manager Approval",
+                "variant": "node",
+                "levels": [
+                  {
+                    "level": 1,
+                    "targetDuration": "0.3m",
+                    "condition": {
+                      "type": "jexl",
+                      "expression": "${local.variables.status} == 'pending'"
+                    },
+                    "actions": [
+                      {
+                        "name": "Action 1",
+                        "type": "service",
+                        "config": {
+                          "type": "http",
+                          "method": "POST",
+                          "url": "https://41l5r34h-3001.asse.devtunnels.ms/api/notifications",
+                          "body": {
+                            "title": "Check your inbox!",
+                            "message": "Please check your inbox for tasks approval."
+                          },
+                          "headers": "Authorization ${context.variables.access_token}"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "level": 2,
+                    "targetDuration": "0.5m",
+                    "condition": {
+                      "type": "jexl",
+                      "expression": "${local.variables.status} == 'pending'"
+                    },
+                    "actions": [
+                      {
+                        "name": "Escalated to CEO",
+                        "type": "escalate",
+                        "config": {
+                          "type": "role",
+                          "roles": ["ceo"]
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "level": 3,
+                    "targetDuration": "1m",
+                    "condition": {
+                      "type": "jexl",
+                      "expression": "${local.variables.status} == 'pending'"
+                    },
+                    "actions": [
+                      {
+                        "name": "Workflow End",
+                        "type": "mutation",
+                        "config": {
+                          "type": "transition",
+                          "toNode": "end"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "key": "manager_decision",
+          "type": "decision",
+          "description": "Manager Decision"
+        },
+        {
+          "key": "send_rejected_noti",
+          "type": "service",
+          "description": "Send Rejected Noti",
+          "config": {
+            "type": "service",
+            "payload": {
+              "type": "http",
+              "method": "POST",
+              "url": "",
+              "body": {
+                "title": "Manager Rejected!",
+                "message": "Your request was rejected by manager."
+              }
+            }
+          }
+        },
+        {
+          "key": "send_approved_noti",
+          "type": "service",
+          "description": "Send Approved Noti",
+          "config": {
+            "type": "service",
+            "payload": {
+              "type": "http",
+              "method": "POST",
+              "url": "https://41l5r34h-3001.asse.devtunnels.ms/api/notifications",
+              "body": {
+                "title": "Manger  Approved!",
+                "message": "Your request was approved by manager."
+              }
+            }
+          }
+        },
+        {
+          "key": "end",
+          "type": "end",
+          "description": "New end"
+        }
+      ],
+      "transitions": [
+        {
+          "fromNode": "start",
+          "toNode": "manager_approval"
+        },
+        {
+          "fromNode": "manager_decision",
+          "toNode": "send_approved_noti",
+          "config": {
+            "type": "condition",
+            "payload": {
+              "type": "jexl",
+              "expression": "${context.variables.outputs.manager_approval.isApproved} == true"
+            }
+          }
+        },
+        {
+          "fromNode": "send_approved_noti",
+          "toNode": "end"
+        },
+        {
+          "fromNode": "manager_decision",
+          "toNode": "send_rejected_noti",
+          "config": {
+            "type": "condition",
+            "payload": {
+              "type": "jexl",
+              "expression": "${context.variables.outputs.manager_approval.isApproved} == false"
+            }
+          }
+        },
+        {
+          "fromNode": "manager_approval",
+          "toNode": "manager_decision"
         }
       ]
     }

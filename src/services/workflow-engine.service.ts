@@ -138,7 +138,6 @@ export class WorkflowEngineService {
         actionId = parallelGatewayRecord.id;
         break;
       case "task":
-        await this.handleTaskNode(instanceId, node, workflowDefinition);
         const taskRecord = await this.recordAction({
           instanceId,
           action: node.key,
@@ -146,6 +145,7 @@ export class WorkflowEngineService {
           status: ActionHistoryStatus.PENDING,
         });
         actionId = taskRecord.id;
+        await this.handleTaskNode(instanceId, node, workflowDefinition);
         break;
       case "service":
         const serviceRecord = await this.recordAction({
@@ -253,8 +253,12 @@ export class WorkflowEngineService {
         instanceId: instanceId,
         nodeKey: node.key,
         status: "pending",
-        assignedUserId: node.config?.payload?.users?.join(","),
-        assignedRoleId: node.config?.payload?.roles?.join(","),
+        assignedUserId:
+          node.config?.payload?.users?.join(",") ||
+          node.config?.users?.join(","),
+        assignedRoleId:
+          node.config?.payload?.roles?.join(",") ||
+          node.config?.roles?.join(","),
         inputs: {},
         workflowId: instance.workflowId,
         createdBy: instance.createdBy,
@@ -267,12 +271,12 @@ export class WorkflowEngineService {
       for (const sla of node.config.slas) {
         const slaDef = sla;
         if (slaDef) {
-          for (const fact of slaDef.facts) {
+          for (const fact of slaDef.facts || slaDef?.levels || []) {
             console.log("fact ", fact);
             const slaInstance = await prisma.slaInstance.create({
               data: {
                 taskId: task.id,
-                slaKey: slaDef.key,
+                slaKey: slaDef.key || slaDef.name,
                 status: "active",
                 slaDef,
               },
